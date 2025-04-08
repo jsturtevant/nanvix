@@ -787,3 +787,654 @@ pub unsafe extern "C" fn write(fd: c_int, buffer: *const c_void, count: size_t) 
     }
     crate::unistd::write(fd, buffer as *const u8, count)
 }
+
+#[no_mangle]
+pub extern "C" fn cfmakeraw(_termios_p: *mut c_void) {
+    ::nvx::error!("cfmakeraw(): not implemented");
+}
+
+#[no_mangle]
+pub extern "C" fn execvp(_file: *const c_char, _argv: *const *const c_char) -> c_int {
+    ::nvx::error!("execvp(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn fchown(_fd: c_int, _owner: uid_t, _group: gid_t) -> c_int {
+    ::nvx::error!("fchown(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn freeifaddrs(_ifa: *mut c_void) {
+    ::nvx::error!("freeifaddrs(): not implemented");
+}
+
+#[no_mangle]
+pub extern "C" fn geteuid() -> uid_t {
+    ::nvx::error!("geteuid(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    0 as uid_t
+}
+
+#[no_mangle]
+pub extern "C" fn getgrgid_r(
+    _gid: gid_t,
+    _grp: *mut c_void,
+    _buf: *mut c_char,
+    _bufsize: size_t,
+    _result: *mut *mut c_void,
+) -> c_int {
+    ::nvx::error!("getgrgid_r(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn gethostname(_name: *mut c_char, _len: size_t) -> c_int {
+    ::nvx::error!("gethostname(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn getifaddrs(_ifa: *mut *mut c_void) -> c_int {
+    ::nvx::error!("getifaddrs(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn getpagesize() -> c_int {
+    ::nvx::error!("getpagesize(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn getppid() -> pid_t {
+    ::nvx::error!("getppid(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+type id_t = c_int;
+
+#[no_mangle]
+pub extern "C" fn getpriority(_which: c_int, _who: id_t) -> c_int {
+    ::nvx::error!("getpriority(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn getpwuid_r(
+    _uid: uid_t,
+    _pwd: *mut c_void,
+    _buf: *mut c_char,
+    _bufsize: size_t,
+    _result: *mut *mut c_void,
+) -> c_int {
+    ::nvx::error!("getpwuid_r(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn getrusage(_who: c_int, _usage: *mut c_void) -> c_int {
+    ::nvx::error!("getrusage(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn getsockopt(
+    _sockfd: c_int,
+    _level: c_int,
+    _optname: c_int,
+    _optval: *mut c_void,
+    _optlen: *mut crate::sys::socket::socklen_t,
+) -> c_int {
+    ::nvx::error!("getsockopt(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn if_nametoindex(_ifname: *const c_char) -> c_uint {
+    ::nvx::error!("if_nametoindex(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn in6addr_any() -> *const c_void {
+    ::nvx::error!("in6addr_any(): not implemented");
+    core::ptr::null()
+}
+
+#[no_mangle]
+pub extern "C" fn nanosleep(_req: *const c_void, _rem: *mut c_void) -> c_int {
+    ::nvx::error!("nanosleep(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pathconf(_path: *const c_char, _name: c_int) -> c_long {
+    ::nvx::error!("pathconf(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn poll(_fds: *mut c_void, _nfds: c_int, _timeout: c_int) -> c_int {
+    ::nvx::error!("poll(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pread(_fd: c_int, _buf: *mut c_void, _count: size_t, _offset: off_t) -> ssize_t {
+    ::nvx::error!("pread(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn preadv(
+    _fd: c_int,
+    _iov: *const c_void,
+    _iovcnt: c_int,
+    _offset: off_t,
+) -> ssize_t {
+    ::nvx::error!("preadv(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_atfork(
+    _prepare: Option<unsafe extern "C" fn()>,
+    _parent: Option<unsafe extern "C" fn()>,
+    _child: Option<unsafe extern "C" fn()>,
+) -> c_int {
+    ::nvx::error!("pthread_atfork(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_condattr_destroy(_attr: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_condattr_destroy(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_condattr_init(_attr: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_condattr_init(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_condattr_setclock(_attr: *mut c_void, _clock_id: c_int) -> c_int {
+    ::nvx::error!("pthread_condattr_setclock(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_getschedparam(
+    _thread: c_int,
+    _policy: *mut c_int,
+    _param: *mut c_void,
+) -> c_int {
+    ::nvx::error!("pthread_getschedparam(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_mutexattr_destroy(_attr: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_mutexattr_destroy(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_mutexattr_init(_attr: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_mutexattr_init(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_mutexattr_settype(_attr: *mut c_void, _type: c_int) -> c_int {
+    ::nvx::error!("pthread_mutexattr_settype(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_once(
+    _once_control: *mut c_void,
+    _init_routine: unsafe extern "C" fn(),
+) -> c_int {
+    ::nvx::error!("pthread_once(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_destroy(_rwlock: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_destroy(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_init(_rwlock: *mut c_void, _attr: *const c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_init(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_rdlock(_rwlock: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_rdlock(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_tryrdlock(_rwlock: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_tryrdlock(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_trywrlock(_rwlock: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_trywrlock(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_unlock(_rwlock: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_unlock(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_rwlock_wrlock(_rwlock: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_rwlock_wrlock(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_setschedparam(
+    _thread: c_int,
+    _policy: c_int,
+    _param: *const c_void,
+) -> c_int {
+    ::nvx::error!("pthread_setschedparam(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pthread_sigmask(_how: c_int, _set: *const c_void, _oldset: *mut c_void) -> c_int {
+    ::nvx::error!("pthread_sigmask(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn ptsname(_fd: c_int) -> *const c_char {
+    ::nvx::error!("ptsname(): not implemented");
+    core::ptr::null()
+}
+
+#[no_mangle]
+pub extern "C" fn pwrite(
+    _fd: c_int,
+    _buf: *const c_void,
+    _count: size_t,
+    _offset: off_t,
+) -> ssize_t {
+    ::nvx::error!("pwrite(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn pwritev(
+    _fd: c_int,
+    _iov: *const c_void,
+    _iovcnt: c_int,
+    _offset: off_t,
+) -> ssize_t {
+    ::nvx::error!("pwritev(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn readlink(_path: *const c_char, _buf: *mut c_char, _bufsize: size_t) -> ssize_t {
+    ::nvx::error!("readlink(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn readv(_fd: c_int, _iov: *const c_void, _iovcnt: c_int) -> ssize_t {
+    ::nvx::error!("readv(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn realpath(_path: *const c_char, _resolved_path: *mut c_char) -> *mut c_char {
+    ::nvx::error!("realpath(): not implemented");
+    core::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn recvmsg(_sockfd: c_int, _msg: *mut c_void, _flags: c_int) -> ssize_t {
+    ::nvx::error!("recvmsg(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn scandir(
+    _dirp: *const c_char,
+    _namelist: *mut *mut c_void,
+    _filter: Option<unsafe extern "C" fn(*const c_void) -> c_int>,
+    _compar: Option<unsafe extern "C" fn(*const c_void, *const c_void) -> c_int>,
+) -> c_int {
+    ::nvx::error!("scandir(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sched_get_priority_max(_policy: c_int) -> c_int {
+    ::nvx::error!("sched_get_priority_max(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sched_get_priority_min(_policy: c_int) -> c_int {
+    ::nvx::error!("sched_get_priority_min(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sem_destroy(_sem: *mut c_void) -> c_int {
+    ::nvx::error!("sem_destroy(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sem_init(_sem: *mut c_void, _pshared: c_int, _value: c_uint) -> c_int {
+    ::nvx::error!("sem_init(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sem_post(_sem: *mut c_void) -> c_int {
+    ::nvx::error!("sem_post(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sem_trywait(_sem: *mut c_void) -> c_int {
+    ::nvx::error!("sem_trywait(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sem_wait(_sem: *mut c_void) -> c_int {
+    ::nvx::error!("sem_wait(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sendmsg(_sockfd: c_int, _msg: *const c_void, _flags: c_int) -> ssize_t {
+    ::nvx::error!("sendmsg(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn setgid(_gid: gid_t) -> c_int {
+    ::nvx::error!("setgid(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn setpriority(_which: c_int, _who: id_t, _prio: c_int) -> c_int {
+    ::nvx::error!("setpriority(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn setsid() -> pid_t {
+    ::nvx::error!("setsid(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn setsockopt(
+    _sockfd: c_int,
+    _level: c_int,
+    _optname: c_int,
+    _optval: *const c_void,
+    _optlen: crate::sys::socket::socklen_t,
+) -> c_int {
+    ::nvx::error!("setsockopt(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn setuid(_uid: uid_t) -> c_int {
+    ::nvx::error!("setuid(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sigaction(_signum: c_int, _act: *const c_void, _oldact: *mut c_void) -> c_int {
+    ::nvx::error!("sigaction(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn sigprocmask(_how: c_int, _set: *const c_void, _oldset: *mut c_void) -> c_int {
+    ::nvx::error!("sigprocmask(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn statvfs(_path: *const c_char, _buf: *mut c_void) -> c_int {
+    ::nvx::error!("statvfs(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn tcgetattr(_fd: c_int, _termios_p: *mut c_void) -> c_int {
+    ::nvx::error!("tcgetattr(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn tcsetattr(
+    _fd: c_int,
+    _optional_actions: c_int,
+    _termios_p: *const c_void,
+) -> c_int {
+    ::nvx::error!("tcsetattr(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn ttyname_r(_fd: c_int, _buf: *mut c_char, _bufsize: size_t) -> c_int {
+    ::nvx::error!("ttyname_r(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
+
+#[no_mangle]
+pub extern "C" fn waitpid(_pid: pid_t, _status: *mut c_int, _options: c_int) -> pid_t {
+    ::nvx::error!("waitpid(): not implemented");
+    unsafe {
+        errno = ErrorCode::InvalidSysCall.get();
+    }
+    -1
+}
