@@ -1,0 +1,29 @@
+# Copyright(c) The Maintainers of Nanvix.
+# Licensed under the MIT License.
+
+[package]
+name = "litebox-nanvix"
+version.workspace = true
+license-file.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Litebox Platform Layer for Nanvix"
+homepage.workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+posix = { workspace = true }
+litebox = { git = "ssh://git@github.com/MSRSSP/litebox.git", rev = "3dd3c09a721dab0f088fbd30fcc6dbd7cbad0a13", default-features = false, package = "litebox" }
+
+[features]
+default = ["posix/syscall", "posix/allocator"]
+
+# Logging
+trace = ["posix/trace"]
+debug = ["posix/debug"]
+info = ["posix/info"]
+warn = ["posix/warn"]
+error = ["posix/error"]
+panic = ["posix/panic"]
