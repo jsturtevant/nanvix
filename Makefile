@@ -470,6 +470,7 @@ endif
 all-litebox: init
 ifeq ($(BUILD_LITEBOX),yes)
 	$(GUEST_CARGO_BUILD_CMD) -p litebox-nanvix
+	$(GUEST_CARGO_BUILD_CMD) -p litebox_platform_multiplex
 else
 	@echo "\033[31mLitebox not built. Set BUILD_LITEBOX=yes to build litebox.\033[0m"
 endif
@@ -477,6 +478,7 @@ endif
 clean-litebox:
 ifeq ($(BUILD_LITEBOX),yes)
 	$(GUEST_CARGO_CLEAN_CMD) -p litebox-nanvix
+	$(GUEST_CARGO_CLEAN_CMD) -p litebox_platform_multiplex
 else
 	@echo "\033[31mLitebox not built. Set BUILD_LITEBOX=yes to build litebox.\033[0m"
 endif
@@ -484,6 +486,7 @@ endif
 check-litebox:
 ifeq ($(BUILD_LITEBOX),yes)
 	$(GUEST_CARGO_CHECK_CMD) -p litebox-nanvix
+	$(GUEST_CARGO_CHECK_CMD) -p litebox_platform_multiplex
 else
 	@echo "\033[31mLitebox not built. Set BUILD_LITEBOX=yes to build litebox.\033[0m"
 endif
@@ -491,6 +494,7 @@ endif
 clippy-litebox:
 ifeq ($(BUILD_LITEBOX),yes)
 	$(GUEST_CARGO_CLIPPY_CMD) -p litebox-nanvix
+	$(GUEST_CARGO_CLIPPY_CMD) -p litebox_platform_multiplex
 else
 	@echo "\033[31mLitebox not built. Set BUILD_LITEBOX=yes to build litebox.\033[0m"
 endif

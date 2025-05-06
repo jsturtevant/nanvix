@@ -15,11 +15,9 @@ name = "litebox-runner"
 
 [dependencies]
 posix = { workspace = true, features = ["syscall", "allocator", "kcall"] }
-litebox = { path = "/home/ppenna/src/nanvix/litebox/litebox", default-features = false }
-litebox_shim_linux = { path = "/home/ppenna/src/nanvix/litebox/litebox_shim_linux", default-features = false }
-litebox_platform_multiplex = { path = "/home/ppenna/src/nanvix/litebox/litebox_platform_multiplex", default-features = false, features = [
-    "platform_nanvix_userland",
-] }
+litebox = { git = "ssh://git@github.com/MSRSSP/litebox.git", rev = "a98afaf3c3eacf69152bf4066f9c99230c9de010", default-features = false }
+litebox_shim_linux = { git = "ssh://git@github.com/MSRSSP/litebox.git", rev = "a98afaf3c3eacf69152bf4066f9c99230c9de010", default-features = false }
+litebox_platform_multiplex = { path = "../../libs/litebox-platform-multiplex", default-features = false }
 litebox-nanvix = { path = "../../libs/litebox-nanvix", default-features = false }
 
 [build-dependencies]
