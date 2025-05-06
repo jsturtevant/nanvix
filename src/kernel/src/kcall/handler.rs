@@ -93,7 +93,7 @@ pub fn kcall_handler(
                         KcallNumber::WritePmio => io::pmio_write(pm, args),
                         KcallNumber::CreateThread => pm::create_thread(pm, mm, args),
                         _ => {
-                            error!("invalid kernel call");
+                            error!("invalid kernel call args: {:?}", args);
                             KcallResult::Error(ErrorCode::InvalidSysCall.into())
                         },
                     };

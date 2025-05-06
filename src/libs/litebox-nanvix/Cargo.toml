@@ -14,8 +14,8 @@ homepage.workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-posix = { workspace = true }
-litebox = { git = "ssh://git@github.com/MSRSSP/litebox.git", rev = "3dd3c09a721dab0f088fbd30fcc6dbd7cbad0a13", default-features = false, package = "litebox" }
+posix = { workspace = true, features = ["syscall", "allocator", "kcall"] }
+litebox = { path = "/home/ppenna/src/nanvix/litebox/litebox", default-features = false }
 
 [features]
 default = ["posix/syscall", "posix/allocator"]
