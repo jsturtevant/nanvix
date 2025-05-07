@@ -20,7 +20,7 @@ use litebox::{
 use litebox_nanvix::NanvixUserland;
 use posix::nvx::sys::error::Error;
 
-static PROG_DATA: &[u8] = include_bytes!("/home/ppenna/hello.hooked");
+static PROG_DATA: &[u8] = include_bytes!("../test-artifacts/hello.hooked");
 
 //==================================================================================================
 // Standalone Functions
