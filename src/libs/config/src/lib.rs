@@ -35,14 +35,14 @@ pub mod memory_layout {
     ///
     /// Provides the raw value for [`KPOOL_END`], which can be used in constant-value expressions.
     ///
-    pub const KERNEL_END_RAW: usize = 0x4000_0000;
+    pub const KERNEL_END_RAW: usize = 0x0800_0000;
 
     ///
     /// # Description
     ///
     /// Provides the raw value for [`KPOOL_BASE`], which can be used in constant-value expressions.
     ///
-    pub const KPOOL_BASE_RAW: usize = 0x00400000;
+    pub const KPOOL_BASE_RAW: usize = 0x0040_0000;
 
     ///
     /// # Description
@@ -56,7 +56,7 @@ pub mod memory_layout {
     ///
     /// Provides the raw value for [`USER_END`], which can be used in constant-value expressions.
     ///
-    pub const USER_END_RAW: usize = 0xf0000000;
+    pub const USER_END_RAW: usize = 0xffc0_0000;
 
     ///
     /// # Description
@@ -104,7 +104,7 @@ pub mod memory_layout {
     ///
     /// - This should be aligned to page and page table boundaries.
     ///
-    pub const USER_LIBS_BASE_RAW: usize = 0xa0000000;
+    pub const USER_LIBS_BASE_RAW: usize = 0xd000_0000;
 
     ///
     /// # Description
@@ -115,7 +115,7 @@ pub mod memory_layout {
     ///
     /// - This should be aligned to page and page table boundaries.
     ///
-    pub const USER_LIBS_END_RAW: usize = 0xb0000000;
+    pub const USER_LIBS_END_RAW: usize = 0xe000_0000;
 
     ///
     /// # Description
