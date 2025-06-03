@@ -227,7 +227,7 @@ impl ProcessState {
         self.events.retain(|o| o.event() != ev)
     }
 
-    pub fn post_message(&mut self, message: Message) {
+    pub fn post_message(&mut self, message: &Message) {
         self.mailbox.send(message)
     }
 

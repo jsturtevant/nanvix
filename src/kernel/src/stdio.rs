@@ -66,9 +66,6 @@ pub fn write(message: Message) -> Result<(), Error> {
 /// messages.  Upon failure, an error is returned instead.
 ///
 pub fn read() -> Result<Option<Message>, Error> {
-    const NBYTES: usize = core::mem::size_of::<Message>();
-    let mut message: [u8; NBYTES] = [0; NBYTES];
-
     cfg_if::cfg_if! {
         if #[cfg(feature = "microvm")] {
             // Read credits register.
@@ -82,6 +79,9 @@ pub fn read() -> Result<Option<Message>, Error> {
             }
         }
     }
+
+    const NBYTES: usize = core::mem::size_of::<Message>();
+    let mut message: [u8; NBYTES] = [0; NBYTES];
 
     // Read message from the kernel's standard input.
     // SAFETY: The standard input is present, initialized and thread-safe to read.

@@ -1468,7 +1468,7 @@ impl ProcessManager {
     ///
     /// Upon successful completion, empty is returned. Otherwise, an error code is returned instead.
     ///
-    pub fn post_message(&mut self, pid: ProcessIdentifier, message: Message) -> Result<(), Error> {
+    pub fn post_message(&mut self, pid: ProcessIdentifier, message: &Message) -> Result<(), Error> {
         let mut pm: RefMut<ProcessManagerInner> = self.try_borrow_mut()?;
         let mut process: ProcessRefMut = pm.find_process_mut(pid)?;
         process.state_mut().post_message(message);

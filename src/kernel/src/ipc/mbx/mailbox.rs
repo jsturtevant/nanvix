@@ -22,8 +22,8 @@ pub struct Mailbox {
 //==================================================================================================
 
 impl Mailbox {
-    pub fn send(&mut self, message: Message) {
-        self.buffer.push_back(message);
+    pub fn send(&mut self, message: &Message) {
+        self.buffer.push_back(message.clone());
     }
 
     pub fn receive(&mut self) -> Option<Message> {

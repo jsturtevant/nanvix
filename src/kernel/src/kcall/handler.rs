@@ -130,7 +130,7 @@ pub fn kcall_handler(
                             Ok(None) => {},
                             // A message is available.
                             Ok(Some(message)) => {
-                                if let Err(e) = EventManager::post_message(pm, message.destination, message) {
+                                if let Err(e) = EventManager::post_message(pm, message.destination, &message) {
                                     warn!("failed to post message (error={:?})", e);
                                 }
                                 message_received = true;

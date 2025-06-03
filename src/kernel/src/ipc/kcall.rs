@@ -33,13 +33,17 @@ use ::sys::{
 // Standalone Functions
 //==================================================================================================
 
-fn do_send(pm: &mut ProcessManager, src: ProcessIdentifier, message: Message) -> Result<(), Error> {
+fn do_send(
+    pm: &mut ProcessManager,
+    src: ProcessIdentifier,
+    message: &Message,
+) -> Result<(), Error> {
     trace!("do_send(): src={:?}, dst={:?}", src, { message.destination });
 
     // TODO: Check if source process has permission to send message to destination process.
 
     // Post message.
-    EventManager::post_message(pm, message.destination, message)
+    EventManager::post_message(pm, message.destination, &message)
 }
 
 pub fn send(pm: &mut ProcessManager, args: &KcallArgs) -> KcallResult {
@@ -80,7 +84,7 @@ pub fn send(pm: &mut ProcessManager, args: &KcallArgs) -> KcallResult {
         // Local-host communication.
         _ => {
             // Post message.
-            match do_send(pm, src, message) {
+            match do_send(pm, src, &message) {
                 Ok(_) => KcallResult::ok(),
                 Err(e) => KcallResult::Error(e.code.into()),
             }

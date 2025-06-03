@@ -596,7 +596,7 @@ impl EventManagerInner {
         &mut self,
         pm: &mut ProcessManager,
         pid: ProcessIdentifier,
-        message: Message,
+        message: &Message,
     ) -> Result<(), Error> {
         pm.post_message(pid, message)?;
 
@@ -832,7 +832,7 @@ impl EventManager {
     pub fn post_message(
         pm: &mut ProcessManager,
         pid: ProcessIdentifier,
-        message: Message,
+        message: &Message,
     ) -> Result<(), Error> {
         Self::get_mut()?
             .try_borrow_mut()?
