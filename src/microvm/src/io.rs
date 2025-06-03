@@ -170,7 +170,17 @@ impl IoThread {
     ///
     fn try_receive_from_microvm(&mut self) -> Result<()> {
         match self.microvm_rx.try_recv() {
-            Ok(message) => {
+            Ok(mut message) => {
+                // TODO: delete me
+                // Add timestamp
+                let this_step: usize = 9;
+                let this_offset: usize = 10 + 2 * this_step;
+                let now = std::time::SystemTime::now();
+                let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                let timestamp_micros = duration.as_micros();
+                let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                let timestamp_bytes = timestamp_u16.to_be_bytes();
+                message.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                 self.outgoing.push_back(message);
                 Ok(())
             },
@@ -195,7 +205,17 @@ impl IoThread {
     fn try_send_to_gateway(&mut self) -> Result<()> {
         match self.outgoing.pop_front() {
             Some(message) => {
-                let message_clone: Message = message.clone();
+                let mut message_clone: Message = message.clone();
+                // TODO: delete me
+                // Add timestamp
+                let this_step: usize = 10;
+                let this_offset: usize = 10 + 2 * this_step;
+                let now = std::time::SystemTime::now();
+                let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                let timestamp_micros = duration.as_micros();
+                let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                let timestamp_bytes = timestamp_u16.to_be_bytes();
+                message_clone.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                 match self.gateway.try_send(message_clone) {
                     Ok(_) => Ok(()),
                     Err(e) => {
@@ -226,7 +246,19 @@ impl IoThread {
     ///
     fn try_send_to_microvm(&mut self) -> Result<()> {
         match self.incoming.pop_front() {
-            Some(message) => {
+            Some(mut message) => {
+                // TODO: delete me
+                // Add timestamp
+                trace!("adding timestamp");
+                let this_step: usize = 3;
+                // Offset is for the LinuxDaemonHeader + count field in ReadMessage
+                let this_offset: usize = 6 + 2 * this_step;
+                let now = std::time::SystemTime::now();
+                let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                let timestamp_micros = duration.as_micros();
+                let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                let timestamp_bytes = timestamp_u16.to_be_bytes();
+                message.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                 // NOTE: calling `send()` on a channel does not block.
                 self.microvm_tx.send(message)?;
                 Ok(())

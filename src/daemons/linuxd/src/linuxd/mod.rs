@@ -603,7 +603,7 @@ impl<'a> LinuxDaemon<'a> {
     fn handle_write_request(
         &mut self,
         source: ProcessIdentifier,
-        request: WriteRequest,
+        mut request: WriteRequest,
     ) -> Message {
         trace!("handle_write_request(): source={source:?}, request={request:?}");
         // Check if writing to gateway.
@@ -617,6 +617,16 @@ impl<'a> LinuxDaemon<'a> {
                     error!("handle_write_request(): trying to write zero bytes to STDOUT");
                     build_error(source, ErrorCode::InvalidArgument)
                 } else {
+                    // TODO: delete me
+                    // Add timestamp
+                    let this_step: usize = 11;
+                    let this_offset: usize = 2 * this_step;
+                    let now = std::time::SystemTime::now();
+                    let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                    let timestamp_micros = duration.as_micros();
+                    let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                    let timestamp_bytes = timestamp_u16.to_be_bytes();
+                    request.buffer[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                     // NOTE: we don't check if the write operation is too big, because its size is
                     // already bound by the maximum payload size of the message.
                     let count: usize = request.count as usize;
@@ -694,6 +704,17 @@ impl<'a> LinuxDaemon<'a> {
                             [0u8; ReadResponse::BUFFER_SIZE];
                         response_buf[..read_count].copy_from_slice(&message[..read_count]);
 
+                        // TODO: delete me
+                        // Add timestamp
+                        let this_step: usize = 1;
+                        let this_offset: usize = 2 * this_step;
+                        let now = std::time::SystemTime::now();
+                        let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                        let timestamp_micros = duration.as_micros();
+                        let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                        let timestamp_bytes = timestamp_u16.to_be_bytes();
+                        response_buf[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
+
                         // Check if there are any outstanding bytes to be read.
                         if count > read_count {
                             // Break outstanding bytes into multiple read responses.
@@ -711,11 +732,13 @@ impl<'a> LinuxDaemon<'a> {
                             }
                         }
                         // Push EoF message.
+                        /*
                         env.push_stdin_message(ReadResponse::build(
                             source,
                             0,
                             [0u8; ReadResponse::BUFFER_SIZE],
                         ));
+                        */
 
                         ReadResponse::build(source, read_count as ssize_t, response_buf)
                     },

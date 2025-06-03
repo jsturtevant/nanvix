@@ -44,6 +44,7 @@ pub fn main() -> Result<(), Error> {
             Ok(n) => n as ssize_t,
         };
         n += nread as usize;
+        break;
     }
 
     if n > 0 {

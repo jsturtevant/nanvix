@@ -136,7 +136,17 @@ impl Vmm {
         let memory_thread: JoinHandle<Result<(), anyhow::Error>> =
             std::thread::spawn(move || loop {
                 match memory_thread_rx.try_recv() {
-                    Ok(msg) => {
+                    Ok(mut msg) => {
+                        // TODO: delete me
+                        // Add timestamp
+                        let this_step: usize = 4;
+                        let this_offset: usize = 6 + 2 * this_step;
+                        let now = std::time::SystemTime::now();
+                        let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                        let timestamp_micros = duration.as_micros();
+                        let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                        let timestamp_bytes = timestamp_u16.to_be_bytes();
+                        msg.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                         if let Err(e) = memory_thread_tx.send(msg) {
                             let reason: String = format!("failed to send message: {e:?}");
                             error!("memory_thread(): {reason}");
@@ -220,6 +230,12 @@ impl Vmm {
     fn build_input_fn(input_queue: Receiver<Message>) -> Box<microvm::InputFn> {
         // Input function used for emulating I/O port reads.
         let input = move |vmem: &Arc<Mutex<VirtualMemory>>, data, size| -> Result<()> {
+            // TODO: delete me
+            let first_now = std::time::SystemTime::now();
+            let first_duration = first_now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+            let first_timestamp_micros = first_duration.as_micros();
+            let first_timestamp_u16 = (first_timestamp_micros & 0xFFFF) as u16;
+            let first_timestamp_bytes = first_timestamp_u16.to_be_bytes();
             // Check for invalid operand size.
             if size != mem::size_of::<u32>() {
                 let reason: String = format!("invalid operand size (size={size:?})");
@@ -229,10 +245,35 @@ impl Vmm {
 
             match input_queue.recv() {
                 Ok(mut msg) => {
+                    // TODO: delete me
+                    // Add previous timestamp first
+                    let this_step: usize = 5;
+                    let this_offset: usize = 6 + 2 * this_step;
+                    msg.payload[this_offset..this_offset + 2].copy_from_slice(&first_timestamp_bytes);
+                    // TODO: delete me
+                    // Add timestamp
+                    let this_step: usize = 6;
+                    let this_offset: usize = 6 + 2 * this_step;
+                    let now = std::time::SystemTime::now();
+                    let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                    let timestamp_micros = duration.as_micros();
+                    let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                    let timestamp_bytes = timestamp_u16.to_be_bytes();
+                    msg.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                     msg.message_type = MessageType::Ikc;
                     let mut locked_vm: MutexGuard<'_, VirtualMemory> = vmem
                         .lock()
                         .map_err(|e| anyhow::anyhow!("failed to acquire lock {e:?}"))?;
+                    // TODO: delete me
+                    // Add timestamp
+                    let this_step: usize = 7;
+                    let this_offset: usize = 6 + 2 * this_step;
+                    let now = std::time::SystemTime::now();
+                    let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                    let timestamp_micros = duration.as_micros();
+                    let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                    let timestamp_bytes = timestamp_u16.to_be_bytes();
+                    msg.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
                     locked_vm.write_bytes(data as u64, &msg.to_bytes())?;
                     locked_vm.consume_credit().unwrap();
                 },
@@ -284,7 +325,7 @@ impl Vmm {
                     .map_err(|e| anyhow::anyhow!("failed to acquire lock {e:?}"))?
                     .read_bytes(data as u64, &mut bytes)?;
 
-                let message: Message = match Message::try_from_bytes(bytes) {
+                let mut message: Message = match Message::try_from_bytes(bytes) {
                     Ok(message) => message,
                     Err(err) => {
                         let reason: String = format!("failed to parse message: {err:?}");
@@ -292,6 +333,18 @@ impl Vmm {
                         anyhow::bail!(reason);
                     },
                 };
+                // TODO: delete me
+                // Add timestamp
+                let this_step: usize = 8;
+                // On the out path the total offset is:
+                // 2B for linuxd header, 4B for fd (i32) and 4B for a size_t (u32)
+                let this_offset: usize = 10 + 2 * this_step;
+                let now = std::time::SystemTime::now();
+                let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                let timestamp_micros = duration.as_micros();
+                let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                let timestamp_bytes = timestamp_u16.to_be_bytes();
+                message.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
 
                 if let Err(e) = queue.send(message) {
                     let reason: String = format!("failed to send message: {e:?}");

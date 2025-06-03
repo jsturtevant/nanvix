@@ -87,7 +87,7 @@ impl Gateway {
         let mut bytes: [u8; mem::size_of::<Message>()] = [0; mem::size_of::<Message>()];
         match self.stream.read_exact(&mut bytes) {
             Ok(_) => {
-                let message: Message = match Message::try_from_bytes(bytes) {
+                let mut message: Message = match Message::try_from_bytes(bytes) {
                     Ok(message) => message,
                     Err(e) => {
                         let reason: String = format!("failed to parse message ({e:?})");
@@ -95,6 +95,19 @@ impl Gateway {
                         return Err(SocketError::new(Error::new(ErrorKind::InvalidData, reason)));
                     },
                 };
+
+                // TODO: delete me
+                // Add timestamp
+                trace!("adding timestamp");
+                let this_step: usize = 2;
+                // Offset is for the LinuxDaemonHeader + count field in ReadMessage
+                let this_offset: usize = 6 + 2 * this_step;
+                let now = std::time::SystemTime::now();
+                let duration = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards");
+                let timestamp_micros = duration.as_micros();
+                let timestamp_u16 = (timestamp_micros & 0xFFFF) as u16;
+                let timestamp_bytes = timestamp_u16.to_be_bytes();
+                message.payload[this_offset..this_offset + 2].copy_from_slice(&timestamp_bytes);
 
                 Ok(message)
             },
