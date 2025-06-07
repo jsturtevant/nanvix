@@ -1,0 +1,27 @@
+# Copyright(c) The Maintainers of Nanvix.
+# Licensed under the MIT License.
+
+[package]
+name = "hello-wasmtime"
+version.workspace = true
+license-file.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Hello World from Wasmtime"
+homepage.workspace = true
+
+[[bin]]
+name = "hello-wasmtime"
+
+[dependencies]
+anyhow = { workspace = true }
+wasmtime = { workspace = true, features = [
+    "std",
+    "runtime",
+    "custom-virtual-memory",
+    "cranelift",
+    "wat",
+] }
+
+[features]
+default = []

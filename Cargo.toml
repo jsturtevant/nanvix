@@ -42,6 +42,7 @@ members = [
         "src/user/hello-rust",
         "src/user/hello-rust-nostd",
         "src/user/hello-wasm",
+        "src/user/hello-wasmtime",
         "src/utils/echo-client",
         "src/utils/loader",
         "src/utils/nanvix-bench",
@@ -108,6 +109,7 @@ type-safe = { path = "src/libs/type-safe", default-features = false }
 syscomm = { path = "src/libs/syscomm", default-features = false }
 syslog = { path = "src/libs/syslog", default-features = false }
 wasmi = { version = "0.47.0", default-features = false }
+wasmtime = { git = "https://github.com/nanvix/wasmtime/", package = "wasmtime", branch = "nanvix/v33.0.0", default-features = false }
 
 [profile.dev]
 opt-level = 0
@@ -145,3 +147,6 @@ lto = true
 
 [workspace.lints.rust]
 warnings = "deny"
+
+[patch.crates-io]
+target-lexicon = { git = "https://github.com/nanvix/target-lexicon", branch = "nanvix/v0.13.2" }

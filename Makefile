@@ -642,6 +642,7 @@ $(foreach target,$(ALL_GUEST_BINARIES),$(eval $(call GUEST_BINARY_RULES,$(target
 
 all-guest-binaries: \
 	all-guest-binaries-hello-rust \
+	all-guest-binaries-hello-wasmtime \
 	$(foreach target,$(ALL_GUEST_BINARIES),all-guest-binaries-$(target))
 	$(MAKE) -C $(SOURCES_DIR)/benchmarks all
 	$(MAKE) -C $(SOURCES_DIR)/user all
@@ -649,10 +650,12 @@ all-guest-binaries: \
 
 check-guest-binaries: \
 	check-guest-binaries-hello-rust \
+	check-guest-binaries-hello-wasmtime \
 	$(foreach target,$(ALL_GUEST_BINARIES),check-guest-binaries-$(target))
 
 clean-guest-binaries: \
 	clean-guest-binaries-hello-rust \
+	clean-guest-binaries-hello-wasmtime \
 	$(foreach target,$(ALL_GUEST_BINARIES),clean-guest-binaries-$(target))
 	$(MAKE) -C $(SOURCES_DIR)/benchmarks clean
 	$(MAKE) -C $(SOURCES_DIR)/user clean
@@ -660,6 +663,7 @@ clean-guest-binaries: \
 
 clippy-guest-binaries: \
 	clippy-guest-binaries-hello-rust \
+	clippy-guest-binaries-hello-wasmtime \
 	$(foreach target,$(ALL_GUEST_BINARIES),clippy-guest-binaries-$(target))
 
 all-wasmd: all-wasm-binaries all-guest-binaries
@@ -699,6 +703,20 @@ clean-guest-binaries-hello-rust:
 
 clippy-guest-binaries-hello-rust:
 	$(GUEST_STD_CARGO_CLIPPY_CMD) -p hello-rust
+
+all-guest-binaries-hello-wasmtime: init
+	$(GUEST_STD_CARGO_BUILD_CMD) -p hello-wasmtime
+	$(CP_CMD) $(OBJECTS_DIR)/i686-unknown-nanvix/$(BUILD_MODE)/hello-wasmtime.elf $(BINARIES_DIR)/hello-wasmtime.elf
+
+check-guest-binaries-hello-wasmtime:
+	$(GUEST_STD_CARGO_CHECK_CMD) -p hello-wasmtime
+
+clean-guest-binaries-hello-wasmtime:
+	$(GUEST_STD_CARGO_CLEAN_CMD) -p hello-wasmtime
+	$(RM_CMD) $(BINARIES_DIR)/$(1).elf
+
+clippy-guest-binaries-hello-wasmtime:
+	$(GUEST_STD_CARGO_CLIPPY_CMD) -p hello-wasmtime
 
 #===================================================================================================
 # Build Rules for Kernel Binary
