@@ -20,7 +20,6 @@ RUST_LOG=trace ./bin/linuxd.elf -user-vm-bind-addr ${SOCKADDR} \
     -log-to-file \
     1> ${LINUXD_STDOUT_FILE_NAME} \
     2> ${LINUXD_STDERR_FILE_NAME} &
-LINUXD_PID=$!
 
 # Wait for linuxd to start.
 sleep 0.1
@@ -40,7 +39,8 @@ RUST_LOG=trace timeout -s SIGINT --preserve-status --foreground ${TIMEOUT} \
 MICROVM_EXIT_CODE=$?
 
 # Kill linuxd and remove socket.
-sudo /usr/bin/kill -s SIGINT $LINUXD_PID
+sudo /usr/bin/pkill -s SIGINT linuxd.elf
+sudo /usr/bin/pkill -s SIGINT microvm.elf
 sudo -E rm -f ${SOCKADDR}
 
 # Move all Rust logs to the logs directory.

@@ -44,7 +44,6 @@ RUST_LOG=trace timeout -s SIGINT --preserve-status --foreground ${TIMEOUT} \
         -keep-alive 0 \
         1> ${NANVIXD_STDOUT_FILE_NAME} \
         2> ${NANVIXD_STDERR_FILE_NAME} &
-NANVIXD_PID=$!
 
 # Extract port number from nanvixd.
 NANVIXD_PORT_NUMBER=$(echo ${NANVIXD_SOCKADDR} | cut -d: -f2)
@@ -83,7 +82,9 @@ curl \
 # FIXME: https://github.com/nanvix/nanvix/issues/543
 mv *.log ${LOGS_DIR}/
 
-kill_children $NANVIXD_PID
+sudo /usr/bin/pkill -e -INT nanvixd.elf
+sudo /usr/bin/pkill -e -INT microvm.elf
+sudo /usr/bin/pkill -e -INT linuxd.elf
 sudo -E rm -f /tmp/${NANVIXD_SOCKADDR}*.socket
 sudo -E rm -f /tmp/${LINUXD_SOCKADDR}*.socket
 sudo -E rm -f /tmp/${SANDBOX_SOCKADDR}*.socket
