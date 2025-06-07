@@ -703,7 +703,7 @@ impl Vmem {
         };
 
         // Run in dry-run mode first to check for errors.
-        _copy_to_user_unaligned(true, dst, src, size)?;
+        // _copy_to_user_unaligned(true, dst, src, size)?;
         // Run in normal mode to effectively copy data.
         _copy_to_user_unaligned(false, dst, src, size)?;
 
