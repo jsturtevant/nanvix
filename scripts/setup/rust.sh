@@ -17,7 +17,7 @@ NANVIX_HOME=`git rev-parse --show-toplevel`
 
 CHANGE_ID=138986
 RUST_VERSION=v1.87.0
-COMMIT_ID=17067e9ac6d7ecb70e50f92c1944e545188d2359
+COMMIT_ID=ef68ac5084a7ecd8e0492d54419098e68e38dd2a
 REPOSITORY_NAME=rust
 REPOSITORY=https://github.com/nanvix/rust.git
 RUST_HOME=${TOOLCHAIN_DIR}/src/rust
@@ -59,10 +59,10 @@ export DESTDIR=${TOOLCHAIN_DIR}
     --disable-compiler-docs \
     --set llvm.download-ci-llvm=true \
     --enable-cargo-native-static \
-    --target=x86_64-unknown-linux-gnu,wasm32-wasip1 \
+    --target=x86_64-unknown-linux-gnu,i686-unknown-nanvix,wasm32-wasip1 \
     --set change-id=$CHANGE_ID
 
 # Build the toolchain.
-./x build --incremental --target x86_64-unknown-linux-gnu,wasm32-wasip1
+./x build --incremental --target x86_64-unknown-linux-gnu,i686-unknown-nanvix,wasm32-wasip1
 
 rustup toolchain link nanvix-x86 build/host/stage2

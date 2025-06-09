@@ -158,9 +158,9 @@ export CARGO := $(HOME)/.cargo/bin/cargo
 export RUSTC := $(HOME)/.cargo/bin/rustc
 
 # Rust flags for guest target.
-export GUEST_RUST_FLAGS := "-C relocation-model=static -C prefer-dynamic=no"
+export GUEST_RUST_FLAGS := "-C relocation-model=static -C prefer-dynamic=no -C link-arg=-T$(BUILD_DIR)/user/linker/$(TARGET)/user.ld"
 export GUEST_CARGO_FLAGS := -Zbuild-std=core,alloc
-export GUEST_CARGO_TARGET := --target $(TARGETS_DIR)/$(TARGET)-user.json
+export GUEST_CARGO_TARGET := --target i686-unknown-nanvix
 export KERNEL_RUST_FLAGS := "-C relocation-model=static -C prefer-dynamic=no"
 export KERNEL_CARGO_FLAGS := -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
 export KERNEL_CARGO_TARGET := --target $(TARGETS_DIR)/$(TARGET)-kernel.json
@@ -208,6 +208,11 @@ export GUEST_CARGO_BUILD_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x
 export GUEST_CARGO_CLEAN_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 clean $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET)
 export GUEST_CARGO_CHECK_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 check $(GUEST_CARGO_FLAGS)  $(GUEST_CARGO_TARGET) --message-format=json
 export GUEST_CARGO_CLIPPY_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 clippy $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET)
+
+export GUEST_STD_CARGO_BUILD_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 build $(GUEST_CARGO_TARGET) $(CARGO_PROFILE)
+export GUEST_STD_CARGO_CLEAN_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 clean $(GUEST_CARGO_TARGET)
+export GUEST_STD_CARGO_CHECK_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 check $(GUEST_CARGO_TARGET) --message-format=json
+export GUEST_STD_CARGO_CLIPPY_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 clippy $(GUEST_CARGO_TARGET)
 
 export KERNEL_CARGO_BUILD_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 build $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) $(CARGO_PROFILE)
 export KERNEL_CARGO_CLEAN_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 clean $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET)
@@ -553,7 +558,7 @@ endif
 define GUEST_STATICLIB_RULES
 all-guest-staticlib-$(1): init
 	$(GUEST_CARGO_BUILD_CMD) -p $(1) --features=staticlib --features=$(LOG_LEVEL)
-	$(CP_CMD) $(OBJECTS_DIR)/$(TARGET)-user/$(BUILD_MODE)/lib$(1).a $(LIBRARIES_DIR)/lib$(1).a
+	$(CP_CMD) $(OBJECTS_DIR)/i686-unknown-nanvix/$(BUILD_MODE)/lib$(1).a $(LIBRARIES_DIR)/lib$(1).a
 
 check-guest-staticlib-$(1):
 	$(GUEST_CARGO_CHECK_CMD) -p $(1)
@@ -620,7 +625,7 @@ test-guest-rlibs:
 define GUEST_BINARY_RULES
 all-guest-binaries-$(1): init all-guest-staticlibs
 	$(GUEST_CARGO_BUILD_CMD) -p $(1) --features=$(LOG_LEVEL)
-	$(CP_CMD) $(OBJECTS_DIR)/$(TARGET)-user/$(BUILD_MODE)/$(1).elf $(BINARIES_DIR)/$(1).elf
+	$(CP_CMD) $(OBJECTS_DIR)/i686-unknown-nanvix/$(BUILD_MODE)/$(1).elf $(BINARIES_DIR)/$(1).elf
 
 check-guest-binaries-$(1):
 	$(GUEST_CARGO_CHECK_CMD) -p $(1) --features=$(LOG_LEVEL)
@@ -635,19 +640,27 @@ endef
 
 $(foreach target,$(ALL_GUEST_BINARIES),$(eval $(call GUEST_BINARY_RULES,$(target))))
 
-all-guest-binaries: $(foreach target,$(ALL_GUEST_BINARIES),all-guest-binaries-$(target))
+all-guest-binaries: \
+	all-guest-binaries-hello-rust \
+	$(foreach target,$(ALL_GUEST_BINARIES),all-guest-binaries-$(target))
 	$(MAKE) -C $(SOURCES_DIR)/benchmarks all
 	$(MAKE) -C $(SOURCES_DIR)/user all
 	$(MAKE) -C $(SOURCES_DIR)/tests all
 
-check-guest-binaries: $(foreach target,$(ALL_GUEST_BINARIES),check-guest-binaries-$(target))
+check-guest-binaries: \
+	check-guest-binaries-hello-rust \
+	$(foreach target,$(ALL_GUEST_BINARIES),check-guest-binaries-$(target))
 
-clean-guest-binaries: $(foreach target,$(ALL_GUEST_BINARIES),clean-guest-binaries-$(target))
+clean-guest-binaries: \
+	clean-guest-binaries-hello-rust \
+	$(foreach target,$(ALL_GUEST_BINARIES),clean-guest-binaries-$(target))
 	$(MAKE) -C $(SOURCES_DIR)/benchmarks clean
 	$(MAKE) -C $(SOURCES_DIR)/user clean
 	$(MAKE) -C $(SOURCES_DIR)/tests clean
 
-clippy-guest-binaries: $(foreach target,$(ALL_GUEST_BINARIES),clippy-guest-binaries-$(target))
+clippy-guest-binaries: \
+	clippy-guest-binaries-hello-rust \
+	$(foreach target,$(ALL_GUEST_BINARIES),clippy-guest-binaries-$(target))
 
 all-wasmd: all-wasm-binaries all-guest-binaries
 	@echo "WASM_BINARY=$(WASM_BINARY)"
@@ -661,7 +674,7 @@ endif
 	@echo "NANVIX_WASM_BINARY_BASENAME=$(NANVIX_WASM_BINARY_BASENAME)"
 	@echo "NANVIX_WASM_BINARY_ARGS=$(NANVIX_WASM_BINARY_ARGS)"
 	$(GUEST_CARGO_BUILD_CMD) $(WASMD_CARGO_FEATURES) -p wasmd
-	$(CP_CMD) $(OBJECTS_DIR)/$(TARGET)-user/$(BUILD_MODE)/wasmd.elf $(BINARIES_DIR)/wasmd.elf
+	$(CP_CMD) $(OBJECTS_DIR)/i686-unknown-nanvix/$(BUILD_MODE)/wasmd.elf $(BINARIES_DIR)/wasmd.elf
 
 check-wasmd:
 	$(GUEST_CARGO_CHECK_CMD) -p wasmd
@@ -672,6 +685,20 @@ clean-wasmd: clean-wasm-binaries clean-guest-binaries
 
 clippy-wasmd:
 	$(GUEST_CARGO_CLIPPY_CMD) -p wasmd
+
+all-guest-binaries-hello-rust: init
+	$(GUEST_STD_CARGO_BUILD_CMD) -p hello-rust
+	$(CP_CMD) $(OBJECTS_DIR)/i686-unknown-nanvix/$(BUILD_MODE)/hello-rust.elf $(BINARIES_DIR)/hello-rust.elf
+
+check-guest-binaries-hello-rust:
+	$(GUEST_STD_CARGO_CHECK_CMD) -p hello-rust
+
+clean-guest-binaries-hello-rust:
+	$(GUEST_STD_CARGO_CLEAN_CMD) -p hello-rust
+	$(RM_CMD) $(BINARIES_DIR)/$(1).elf
+
+clippy-guest-binaries-hello-rust:
+	$(GUEST_STD_CARGO_CLIPPY_CMD) -p hello-rust
 
 #===================================================================================================
 # Build Rules for Kernel Binary
