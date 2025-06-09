@@ -48,7 +48,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.6.24"
+version = "0.7.0"
 license-file = "LICENSE.txt"
 authors = ["The Maintainers of Nanvix"]
 edition = "2021"
@@ -81,7 +81,8 @@ libc = "0.2.172"
 log = "0.4.27"
 micromath = "2.1.0"
 nix = { version = "0.30.1", default-features = false, features = [
-        "process", "signal",
+        "process",
+        "signal",
 ] }
 num_enum = { version = "0.7.3", default-features = false }
 nvx = { path = "src/libs/nvx", default-features = false }
