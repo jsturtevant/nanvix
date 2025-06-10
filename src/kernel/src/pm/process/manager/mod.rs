@@ -228,13 +228,14 @@ impl ProcessManagerInner {
         trace!("forge_context(): cr3={:#x}, esp={:#x}, ebp={:#x}", cr3, esp, esp0);
         let context: ContextInformation = ContextInformation::new(cr3, esp, esp0);
 
-        // Alloc user stack and map it.
-        mm.alloc_upages(
-            vmem,
-            user_stack.base(),
-            user_stack.size() / PAGE_SIZE,
-            AccessPermission::RDWR,
-        )?;
+        // Alloc user stack and map it one page at a time.
+        let num_pages = user_stack.size() / PAGE_SIZE;
+        let mut addr = user_stack.base();
+        for _ in 0..num_pages {
+            mm.alloc_upage(vmem, addr, AccessPermission::RDWR, true)?;
+            addr =
+                PageAligned::from_address(VirtualAddress::new(addr.into_raw_value() + PAGE_SIZE))?;
+        }
 
         // NOTE: if we fail, beyond this point we must unmap kernel pages from `vmem`.
 
