@@ -92,6 +92,11 @@ pub const SHUT_WR: i32 = 1;
 /// Disables further send and receive operations.
 pub const SHUT_RDWR: i32 = 2;
 
+/// Send timeout.
+pub const SO_SNDTIMEO: i32 = 0x1005;
+/// Receive timeout.
+pub const SO_RCVTIMEO: i32 = 0x1006;
+
 /// Peeks at an incoming message.
 pub const MSG_PEEK: i32 = 0x2;
 /// Requests out-of-band data.
