@@ -100,7 +100,10 @@ pub extern "C" fn do_kcall(number: u32, arg0: u32, arg1: u32, arg2: u32, arg3: u
         },
         // SAFETY: The calling thread does not hold a reference to the process manager.
         KcallNumber::MutexUnlock => match unsafe { pm::unlock_mutex(pid, tid, arg0 as usize) } {
-            Ok(()) => KcallResult::ok(),
+            Ok(()) => match unsafe { ProcessManager::giveup() } {
+                Ok(()) => KcallResult::ok(),
+                Err(e) => KcallResult::Error(e.code.into()),
+            },
             Err(e) => KcallResult::Error(e.code.into()),
         },
         // SAFETY: The calling thread is not the kernel, no resources are held, and the calling process does not hold a reference to the process manager.
@@ -115,7 +118,10 @@ pub extern "C" fn do_kcall(number: u32, arg0: u32, arg1: u32, arg2: u32, arg3: u
         // SAFETY: The calling thread is not the kernel, no resources are held, and the calling process does not hold a reference to the process manager.
         KcallNumber::CondSignal => {
             match unsafe { pm::signal_cond(pid, tid, arg0 as usize, arg1 != 0) } {
-                Ok(awakened) => KcallResult::Success(awakened.into()),
+                Ok(awakened) => match unsafe { ProcessManager::giveup() } {
+                    Ok(()) => KcallResult::Success(awakened.into()),
+                    Err(e) => KcallResult::Error(e.code.into()),
+                },
                 Err(e) => KcallResult::Error(e.code.into()),
             }
         },
