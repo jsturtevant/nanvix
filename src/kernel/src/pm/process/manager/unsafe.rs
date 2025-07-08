@@ -43,6 +43,13 @@ use crate::{
         SleepError,
         ORDER,
     },
+    PERF_SCHED_EXIT_CONTEXT_SWITCHES,
+    PERF_SCHED_EXIT_THREAD_CONTEXT_SWITCHES,
+    PERF_SCHED_GIVEUP_CONTEXT_SWITCHES,
+    PERF_SCHED_KERNEL_IDLE,
+    PERF_SCHED_SLEEP_CONTEXT_SWITCHES,
+    PERF_SCHED_SOFT_CONTEXT_SWITCHES,
+    PERF_SCHED_WAKEUP,
 };
 use ::alloc::rc::Rc;
 use ::arch::mem::PAGE_SIZE;
@@ -218,6 +225,7 @@ impl ProcessManager {
 
         // SAFETY: `from` and `to` point to valid context information structures, and the processor
         // is running with interrupts disabled.
+        PERF_SCHED_EXIT_CONTEXT_SWITCHES.fetch_add(1, ORDER);
         Self::switch(next_pid, next_tid, from, to);
 
         // SAFETY: Self::switch() performs a context switch and never returns. If this line is ever
@@ -279,6 +287,7 @@ impl ProcessManager {
 
         // SAFETY: `from` and `to` point to valid context information structures, and the processor
         // is running with interrupts disabled.
+        PERF_SCHED_EXIT_THREAD_CONTEXT_SWITCHES.fetch_add(1, ORDER);
         Self::switch(next_pid, next_tid, from, to);
 
         // SAFETY: Self::switch() performs a context switch and never returns. If this line is ever
@@ -427,6 +436,7 @@ impl ProcessManager {
 
         // SAFETY: `from` and `to` point to valid context information structures, and the processor
         // is running with interrupts disabled.
+        PERF_SCHED_SLEEP_CONTEXT_SWITCHES.fetch_add(1, ORDER);
         Self::switch(next_pid, next_tid, from, to);
 
         // Check the reason why the thread was woken up.
@@ -487,6 +497,7 @@ impl ProcessManager {
             // Switch to the next thread and updating the remaining quantum accordingly.
             // SAFETY: `from` and `to` point to valid context information structures, and the
             // processor is running with interrupts disabled.
+            PERF_SCHED_GIVEUP_CONTEXT_SWITCHES.fetch_add(1, ORDER);
             Self::switch(next_pid, next_tid, from, to);
         }
 
@@ -648,6 +659,7 @@ impl ProcessManager {
     /// - The calling process does not hold a reference to the process manager.
     ///
     pub unsafe fn wakeup(tid: ThreadIdentifier) -> Result<(), Error> {
+        PERF_SCHED_WAKEUP.fetch_add(1, ORDER);
         Self::get_mut().try_borrow_mut()?.wakeup(tid)
     }
 
@@ -742,9 +754,12 @@ impl ProcessManager {
             ContextInformation::switch(from, to);
         } else {
             // We do not need to perform a context switch, the same thread will continue running.
+            PERF_SCHED_SOFT_CONTEXT_SWITCHES.fetch_add(1, ORDER);
 
             // Check if the kernel thread will continue running.
             if next_tid == ThreadIdentifier::KERNEL {
+                PERF_SCHED_KERNEL_IDLE.fetch_add(1, ORDER);
+
                 // The kernel thread will continue running. This means there are no other ready
                 // threads to run, and the kernel has no work to do at the moment. Enable interrupts
                 // and wait for an external event (such as a timer or hardware interrupt) to wake up
