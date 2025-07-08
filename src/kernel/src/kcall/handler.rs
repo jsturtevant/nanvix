@@ -119,29 +119,34 @@ pub fn kcall_handler(
         cfg_if::cfg_if! {
             if #[cfg(feature = "stdio")] {
                 let mut message_received: bool = false;
-                // Check if the number of buffered messages in the kernel is not too high. We don't
-                // want to keep pushing messages to the kernel and then run out of memory.
-                if let Ok(number_buffered_messages) = pm.number_buffered_messages() {
-                    if number_buffered_messages < config::kernel::MAX_IKC_MESSAGES {
-                        // The number of messages that are buffered in the kernel is not too high,
-                        // So attempt to read an inter-kernel communication message from the
-                        // kernel's standard input.
-                        match crate::stdio::read() {
-                            // No message is available.
-                            Ok(None) => {},
-                            // A message is available.
-                            Ok(Some(message)) => {
-                                if let Err(e) = EventManager::post_message(pm, message.destination, message) {
-                                    warn!("failed to post message (error={:?})", e);
+                loop {
+                    // Check if the number of buffered messages in the kernel is not too high. We don't
+                    // want to keep pushing messages to the kernel and then run out of memory.
+                    if let Ok(number_buffered_messages) = pm.number_buffered_messages() {
+                        if number_buffered_messages < config::kernel::MAX_IKC_MESSAGES {
+                            // The number of messages that are buffered in the kernel is not too high,
+                            // So attempt to read an inter-kernel communication message from the
+                            // kernel's standard input.
+                            match crate::stdio::read() {
+                                // No message is available.
+                                Ok(None) => {},
+                                // A message is available.
+                                Ok(Some(message)) => {
+                                    if let Err(e) = EventManager::post_message(pm, message.destination, message) {
+                                        warn!("failed to post message (error={:?})", e);
+                                    }
+                                    message_received = true;
+                                    continue;
                                 }
-                                message_received = true;
-                            }
-                            // Failed to read message.
-                            Err(e) => {
-                                warn!("failed to read message (error={:?})", e);
+                                // Failed to read message.
+                                Err(e) => {
+                                    warn!("failed to read message (error={:?})", e);
+                                    continue;
+                                }
                             }
                         }
                     }
+                    break;
                 }
             } else {
                 // No inter-kernel communication messages are available.
