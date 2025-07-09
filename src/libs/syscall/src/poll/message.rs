@@ -118,7 +118,7 @@ impl PollRequest {
         // Check if number of file descriptors exceeds the maximum supported.
         if fds.len() > NFDS_MAX {
             let reason: &str = "number of file descriptors exceeds maximum supported";
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
             ::syslog::error!(
                 "build(): {reason:?}, (max={NFDS_MAX}, fds.len()={}, events.len()={}, \
                  timeout={timeout:?})",
@@ -132,7 +132,7 @@ impl PollRequest {
             Ok(n) => n,
             Err(_) => {
                 let reason: &str = "number of file descriptors exceeds maximum supported";
-                #[cfg(not(target_os = "linux"))]
+                #[cfg(not(any(target_os = "linux", target_os = "windows")))]
                 ::syslog::error!(
                     "build(): {reason:?}, (max={NFDS_MAX}, fds.len()={}, events.len()={}, \
                      timeout={timeout:?})",
@@ -146,7 +146,7 @@ impl PollRequest {
         // Check if number of events does not match the number of file descriptors.
         if events.len() != fds.len() {
             let reason: &str = "number of events does not match number of file descriptors";
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
             ::syslog::error!(
                 "build(): {reason:?}, (fds.len()={}, events.len()={}, timeout={timeout:?})",
                 fds.len(),
@@ -244,7 +244,7 @@ impl PollResponse {
         // Check if number of file descriptors exceeds the maximum supported.
         if fds.len() > NFDS_MAX {
             let reason: &str = "number of file descriptors exceeds maximum supported";
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
             ::syslog::error!(
                 "build(): {reason:?}, (max={NFDS_MAX}, fds.len()={}, revents.len()={})",
                 fds.len(),
@@ -256,7 +256,7 @@ impl PollResponse {
         // Check if number of events does not match the number of file descriptors.
         if revents.len() != fds.len() {
             let reason: &str = "number of events does not match number of file descriptors";
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
             ::syslog::error!(
                 "build(): {reason:?}, (fds.len()={}, revents.len()={})",
                 fds.len(),

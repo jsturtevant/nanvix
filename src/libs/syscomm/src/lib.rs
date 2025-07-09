@@ -8,12 +8,9 @@
 extern crate alloc;
 
 use ::anyhow::Result;
-use ::log::error;
 use ::std::{
-    fs,
     io::{
         self,
-        ErrorKind,
         Read,
         Write,
     },
@@ -22,9 +19,18 @@ use ::std::{
         TcpListener,
         TcpStream,
     },
-    os::unix::net::{
-        UnixListener,
-        UnixStream,
+};
+
+#[cfg(unix)]
+use {
+    ::log::error,
+    ::std::{
+        fs,
+        io::ErrorKind,
+        os::unix::net::{
+            UnixListener,
+            UnixStream,
+        },
     },
 };
 
@@ -37,6 +43,7 @@ use ::std::{
 pub enum SocketType {
     /// TCP socket.
     Tcp,
+    #[cfg(unix)]
     /// Unix socket.
     Unix,
 }
@@ -48,7 +55,11 @@ impl Socket {
     pub fn bind(typ: SocketType, addr: String) -> Result<SocketListener> {
         match typ {
             SocketType::Tcp => Ok(SocketListener::Tcp(TcpListener::bind(addr)?)),
-            SocketType::Unix => Ok(SocketListener::Unix { listener: UnixListener::bind(&addr)?, path: addr.clone() }),
+            #[cfg(unix)]
+            SocketType::Unix => Ok(SocketListener::Unix {
+                listener: UnixListener::bind(&addr)?,
+                path: addr.clone(),
+            }),
         }
     }
 }
@@ -57,6 +68,7 @@ impl Socket {
 #[derive(Debug)]
 pub enum SocketListener {
     Tcp(TcpListener),
+    #[cfg(unix)]
     Unix {
         listener: UnixListener,
         path: String,
@@ -69,6 +81,7 @@ impl ::std::str::FromStr for SocketType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "tcp" => Ok(SocketType::Tcp),
+            #[cfg(unix)]
             "unix" => Ok(SocketType::Unix),
             _ => Err("invalid socket type"),
         }
@@ -83,6 +96,7 @@ impl SocketListener {
                 let (stream, _sockaddr): (TcpStream, std::net::SocketAddr) = listener.accept()?;
                 Ok(SocketStream::Tcp(stream))
             },
+            #[cfg(unix)]
             SocketListener::Unix { listener, path: _ } => {
                 let (stream, _sockaddr): (UnixStream, std::os::unix::net::SocketAddr) =
                     listener.accept()?;
@@ -96,13 +110,12 @@ impl Drop for SocketListener {
     fn drop(&mut self) {
         match self {
             SocketListener::Tcp(_) => {},
-            SocketListener::Unix { listener: _, path } => {
-                match fs::remove_file(path.clone()) {
-                    Ok(_) => {},
-                    Err(ref e) if e.kind() == ErrorKind::NotFound => {},
-                    Err(e) => error!("error removing UNIX socket (path={path}, error={e:?})"),
-                }
-            }
+            #[cfg(unix)]
+            SocketListener::Unix { listener: _, path } => match fs::remove_file(path.clone()) {
+                Ok(_) => {},
+                Err(ref e) if e.kind() == ErrorKind::NotFound => {},
+                Err(e) => error!("error removing UNIX socket (path={path}, error={e:?})"),
+            },
         }
     }
 }
@@ -113,6 +126,7 @@ pub enum SocketStream {
     /// TCP socket stream.
     Tcp(TcpStream),
     /// Unix socket stream.
+    #[cfg(unix)]
     Unix(UnixStream),
 }
 
@@ -124,6 +138,7 @@ impl SocketStream {
                 let stream: TcpStream = TcpStream::connect(addr)?;
                 Ok(SocketStream::Tcp(stream))
             },
+            #[cfg(unix)]
             SocketType::Unix => {
                 let stream: UnixStream = UnixStream::connect(addr)?;
                 Ok(SocketStream::Unix(stream))
@@ -135,6 +150,7 @@ impl SocketStream {
     pub fn set_nonblocking(&self, nonblocking: bool) -> Result<(), ::std::io::Error> {
         match self {
             SocketStream::Tcp(stream) => stream.set_nonblocking(nonblocking),
+            #[cfg(unix)]
             SocketStream::Unix(stream) => stream.set_nonblocking(nonblocking),
         }
     }
@@ -143,6 +159,7 @@ impl SocketStream {
     pub fn write_all(&mut self, buf: &[u8]) -> Result<(), SocketError> {
         let result = match self {
             SocketStream::Tcp(stream) => stream.write_all(buf),
+            #[cfg(unix)]
             SocketStream::Unix(stream) => stream.write_all(buf),
         };
 
@@ -156,6 +173,7 @@ impl SocketStream {
     pub fn read_exact(&mut self, buf: &mut [u8]) -> Result<(), ::std::io::Error> {
         let result = match self {
             SocketStream::Tcp(stream) => stream.read_exact(buf),
+            #[cfg(unix)]
             SocketStream::Unix(stream) => stream.read_exact(buf),
         };
 
@@ -172,6 +190,7 @@ impl SocketStream {
                 Ok(addr) => Ok(SocketAddr::Tcp(addr)),
                 Err(error) => Err(SocketError { error }),
             },
+            #[cfg(unix)]
             SocketStream::Unix(stream) => match stream.peer_addr() {
                 Ok(addr) => Ok(SocketAddr::Unix(addr)),
                 Err(error) => Err(SocketError { error }),
@@ -265,6 +284,7 @@ impl Read for SocketStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self {
             SocketStream::Tcp(stream) => stream.read(buf),
+            #[cfg(unix)]
             SocketStream::Unix(stream) => stream.read(buf),
         }
     }
@@ -276,6 +296,7 @@ pub enum SocketAddr {
     /// TCP socket address.
     Tcp(std::net::SocketAddr),
     /// Unix socket address.
+    #[cfg(unix)]
     Unix(std::os::unix::net::SocketAddr),
 }
 
