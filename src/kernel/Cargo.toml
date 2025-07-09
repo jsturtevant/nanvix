@@ -27,6 +27,16 @@ hyperlight-common = { workspace = true, optional = true }
 hyperlight-guest = { workspace = true, optional = true }
 static_assert = { workspace = true }
 
+[target.'cfg(target_is = "linux")'.dependencies]
+hyperlight-common = { workspace = true }
+hyperlight-host = { workspace = true, features = ["kvm"] }
+hyperlight-guest = { workspace = true }
+
+[target.'cfg(target_is = "windows")'.dependencies]
+hyperlight-common = { workspace = true }
+hyperlight-host = { workspace = true, features = ["mshv2"] }
+hyperlight-guest = { workspace = true }
+
 [build-dependencies]
 cc = { workspace = true }
 cfg-if = { workspace = true }
