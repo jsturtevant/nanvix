@@ -52,7 +52,10 @@ use ::syscomm::{
 //==================================================================================================
 
 /// Default socket bind type.
+#[cfg(target_os = "linux")]
 const DEFAULT_BIND_SOCKET_TYPE: SocketType = SocketType::Unix;
+#[cfg(target_os = "windows")]
+const DEFAULT_BIND_SOCKET_TYPE: SocketType = SocketType::Tcp;
 
 //==================================================================================================
 // Standalone Functions
