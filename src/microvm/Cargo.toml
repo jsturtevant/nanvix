@@ -21,7 +21,6 @@ path = "src/main.rs"
 arch = { workspace = true }
 anyhow = { workspace = true }
 flexi_logger = { workspace = true }
-hyperlight-host = { workspace = true, optional = true }
 log = { workspace = true }
 profiler = { workspace = true, features = ["auto-calibrate"] }
 sys = { workspace = true }
@@ -29,18 +28,14 @@ syscall = { workspace = true }
 cfg-if = { workspace = true }
 config = { workspace = true, features = ["microvm"] }
 syscomm = { workspace = true }
-
-[target.'cfg(target_is = "linux")'.dependencies]
 hyperlight-common = { workspace = true }
-hyperlight-host = { workspace = true, features = ["kvm"] }
 hyperlight-guest = { workspace = true }
 
-[target.'cfg(target_is = "windows")'.dependencies]
-hyperlight-common = { workspace = true }
-hyperlight-host = { workspace = true, features = ["mshv2"] }
-hyperlight-guest = { workspace = true }
+[target.'cfg(target_os = "windows")'.dependencies]
+hyperlight-host = { git = "https://github.com/danbugs/hyperlight", rev = "f940513", default-features = false, optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+hyperlight-host = { git = "https://github.com/danbugs/hyperlight", rev = "f940513", default-features = false, optional = true, features = ["kvm"] }
 kvm-bindings = { workspace = true }
 kvm-ioctls = { workspace = true }
 libc = { workspace = true }
