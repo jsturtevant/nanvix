@@ -26,40 +26,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # Debug
-    - name: "Lint (debug)"
-      uses: ./.github/actions/lint
-      with:
-        release: 'debug'
-        log-level: 'trace'
-    - name: "Build (debug)"
-      uses: ./.github/actions/build
-      with:
-        release: 'debug'
-        log-level: 'trace'
-    - name: "Test (debug)"
-      uses: ./.github/actions/test
-      with:
-        release: 'debug'
-        log-level: 'trace'
-
-    # Release
-    - name: "Lint (release)"
-      uses: ./.github/actions/lint
-      with:
-        release: 'release'
-        log-level: 'trace'
-    - name: "Build (release)"
-      uses: ./.github/actions/build
-      with:
-        release: 'release'
-        log-level: 'trace'
-    - name: "Test (release)"
-      uses: ./.github/actions/test
-      with:
-        release: 'release'
-        log-level: 'trace'
-
     # Rebuild release with logs disabled.
     - name: "Build (release)"
       uses: ./.github/actions/build
