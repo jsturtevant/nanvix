@@ -15,8 +15,7 @@ runs:
     shell: bash
   - name: Run micro-benchmarks (MicroVM)
     run: |
-      ./bin/nanvix-bench.elf -benchmark cold-start | grep -E '^(First req|p50:|p95:|p99:)' > bench_cold_start_microvm.txt
-      ./bin/nanvix-bench.elf -benchmark warm-start | grep -E '^(First req|p50:|p95:|p99:)' > bench_warm_start_microvm.txt
+      ./bin/nanvix-bench.elf -benchmark boot-time | grep -E '^(p50:|p95:|p99:)' > bench_boot_time_microvm.txt
     shell: bash
 
   # Hyperlight benchmarks
@@ -27,8 +26,7 @@ runs:
     shell: bash
   - name: Run micro-benchmarks (Hyperlight)
     run: |
-      ./bin/nanvix-bench.elf -benchmark cold-start | grep -E '^(p50:|p95:|p99:)' > bench_cold_start_hyperlight.txt
-      ./bin/nanvix-bench.elf -benchmark warm-start | grep -E '^(p50:|p95:|p99:)' > bench_warm_start_hyperlight.txt
+      ./bin/nanvix-bench.elf -benchmark boot-time | grep -E '^(p50:|p95:|p99:)' > bench_boot_time_hyperlight.txt
     shell: bash
 
   # Post-process the results
@@ -37,40 +35,23 @@ runs:
     run: |
       # First concatenate the latest `dev` results with the current PRs'.
       paste -d '\t' \
-        $HOME/ubench-results-dev/bench_cold_start_microvm.txt bench_cold_start_microvm.txt \
-        > /tmp/bench_cold_start_microvm_combined.txt
+        $HOME/ubench-results-dev/bench_boot_time_microvm.txt bench_boot_time_microvm.txt \
+        > /tmp/bench_boot_time_microvm_combined.txt
       paste -d '\t' \
-        $HOME/ubench-results-dev/bench_warm_start_microvm.txt bench_warm_start_microvm.txt \
-        > /tmp/bench_warm_start_microvm_combined.txt
-      paste -d '\t' \
-        $HOME/ubench-results-dev/bench_cold_start_hyperlight.txt bench_cold_start_hyperlight.txt \
-        > /tmp/bench_cold_start_hyperlight_combined.txt
-      paste -d '\t' \
-        $HOME/ubench-results-dev/bench_warm_start_hyperlight.txt bench_warm_start_hyperlight.txt \
-        > /tmp/bench_warm_start_hyperlight_combined.txt
+        $HOME/ubench-results-dev/bench_boot_time_hyperlight.txt bench_boot_time_hyperlight.txt \
+        > /tmp/bench_boot_time_hyperlight_combined.txt
 
       # Prepare the text for the PR comment.
       {
-        echo "### Cold-Starts"
+        echo "### Boot-Time"
         echo '```'
         echo "========== MicroVM ==========" | cat
         echo -e "dev\t\t${TARGET_BRANCH}" | cat
-        cat /tmp/bench_cold_start_microvm_combined.txt
+        cat /tmp/bench_boot_time_microvm_combined.txt
         echo ""
         echo "========== Hyperlight ==========" | cat
         echo -e "dev\t\t${TARGET_BRANCH}" | cat
-        cat /tmp/bench_cold_start_hyperlight_combined.txt
-        echo '```'
-        echo ""
-        echo "### Warm-Starts"
-        echo '```'
-        echo "========== MicroVM ==========" | cat
-        echo -e "dev\t\t${TARGET_BRANCH}" | cat
-        cat /tmp/bench_warm_start_microvm_combined.txt
-        echo ""
-        echo "========== Hyperlight ==========" | cat
-        echo -e "dev\t\t${TARGET_BRANCH}" | cat
-        cat /tmp/bench_warm_start_hyperlight_combined.txt
+        cat /tmp/bench_boot_time_hyperlight_combined.txt
         echo '```'
       } > /tmp/comment.txt
 
@@ -122,8 +103,6 @@ runs:
     if: github.ref_name == 'dev'
     run: |
       mkdir -p $HOME/ubench-results-dev
-      cp bench_cold_start_microvm.txt $HOME/ubench-results-dev/
-      cp bench_warm_start_microvm.txt $HOME/ubench-results-dev/
-      cp bench_cold_start_hyperlight.txt $HOME/ubench-results-dev/
-      cp bench_warm_start_hyperlight.txt $HOME/ubench-results-dev/
+      cp bench_boot_time_microvm.txt $HOME/ubench-results-dev/
+      cp bench_boot_time_hyperlight.txt $HOME/ubench-results-dev/
     shell: bash
