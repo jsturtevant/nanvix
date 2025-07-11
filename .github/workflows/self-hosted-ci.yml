@@ -59,5 +59,12 @@ jobs:
       with:
         release: 'release'
         log-level: 'trace'
+
+    # Rebuild release with logs disabled.
+    - name: "Build (release)"
+      uses: ./.github/actions/build
+      with:
+        release: 'release'
+        log-level: 'panic'
     - name: "Benchmark (release)"
       uses: ./.github/actions/benchmark
