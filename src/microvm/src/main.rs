@@ -32,10 +32,7 @@ extern crate log;
 
 use self::args::Args;
 use ::anyhow::Result;
-use ::microvm::{
-    Gateway,
-    Vmm,
-};
+use ::microvm::Vmm;
 use ::std::{
     convert::TryInto,
     env,
@@ -88,10 +85,10 @@ fn main() -> Result<ExitCode> {
     // Initialize logger. If this fails, the program will panic.
     logging::initialize(args.log_to_file());
 
-    let gateway: Option<Gateway> = match &system_vm_addr {
+    let system_vm_stream: Option<SocketStream> = match &system_vm_addr {
         Some(addr) => loop {
             match SocketStream::connect(system_vm_socket_type, addr.clone()) {
-                Ok(stream) => break Some(Gateway::new(stream)),
+                Ok(stream) => break Some(stream),
                 // The micro VM is trying to connect before the system VM's listener socket is
                 // responsive.
                 Err(ref e) if e.kind() == ErrorKind::NotFound => {
@@ -115,7 +112,7 @@ fn main() -> Result<ExitCode> {
         None => None,
     };
 
-    let _control_plane_socket: Option<SocketStream> = match args.control_plane_addr() {
+    let control_plane_socket: Option<SocketStream> = match args.control_plane_addr() {
         Some(addr) => {
             let control_plane_socket_type: SocketType = match args.control_plane_socket_type() {
                 Some(socket_type) => socket_type,
@@ -137,8 +134,15 @@ fn main() -> Result<ExitCode> {
     };
 
     // Run virtual machine and check exit status code.
-    match Vmm::spawn(memory_size, &kernel_filename, initrd_filename, initrd_args, stderr, gateway)?
-    {
+    match Vmm::spawn(
+        memory_size,
+        &kernel_filename,
+        initrd_filename,
+        initrd_args,
+        stderr,
+        control_plane_socket,
+        system_vm_stream,
+    )? {
         exit_status if exit_status != 0 => {
             let exit_code: u8 = match exit_status.try_into() {
                 Ok(code) => code,
