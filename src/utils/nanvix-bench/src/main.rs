@@ -43,10 +43,7 @@ use log::{
     debug,
     error,
 };
-use microvm::{
-    Gateway,
-    Vmm,
-};
+use microvm::Vmm;
 use mio::net::UnixStream;
 use reqwest::header::{
     CONTENT_TYPE,
@@ -506,8 +503,9 @@ impl Benchmark {
                 format!("{}/bin/kernel.elf", get_proj_root()).as_str(),
                 Some(program),
                 None,
-                Some("/dev/null".to_string()),
-                Some(Gateway::new(syscomm::SocketStream::Unix(vmm_stream))),
+                None,
+                None,
+                Some(syscomm::SocketStream::Unix(vmm_stream)),
             )? {
                 e if e != 0 => {
                     error!("error running VMM, exited with status: {e}");
