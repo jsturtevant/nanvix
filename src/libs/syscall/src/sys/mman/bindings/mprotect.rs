@@ -5,8 +5,8 @@
 // Imports
 //==================================================================================================
 
-use crate::errno::__errno_location;
-use ::sys::error::ErrorCode;
+// use crate::errno::__errno_location;
+// use ::sys::error::ErrorCode;
 
 //==================================================================================================
 // Standalone Functions
@@ -17,9 +17,6 @@ use ::sys::error::ErrorCode;
 pub unsafe extern "C" fn mprotect(addr: *mut u8, length: usize, prot: i32) -> isize {
     ::syslog::trace!("mprotect(): addr={addr:?}, length={length}, prot={prot}");
 
-    ::syslog::error!("mprotect(): not implemented");
-    unsafe {
-        *__errno_location() = ErrorCode::InvalidSysCall.get();
-    }
-    -1
+    ::syslog::error!("mprotect(): not implemented, returning 0");
+    0
 }
