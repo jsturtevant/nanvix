@@ -69,18 +69,32 @@ pub fn munmap(base: VirtualAddress, length: usize) -> Result<(), Error> {
     // Lock the segments map.
     let mut segments: MutexGuard<'_, BTreeMap<VirtualAddress, MemorySegment>> =
         MMAP_SEGMENTS.lock();
+    // Find the segment that contains the base address.
+    let found = segments
+        .iter()
+        .find(|(_, segment)| {
+            let seg_base = segment.base();
+            let seg_end = seg_base + segment.capacity();
+            base >= seg_base && (base + length) <= seg_end
+        })
+        .map(|(seg_base, _)| *seg_base);
 
-    // Check if the segment exists.
-    if let Some(segment) = segments.get(&base) {
+    if let Some(seg_base) = found {
+        let segment = &segments[&seg_base];
         // Check if the segment is large enough.
-        if segment.capacity() < length {
-            let reason: &str = "segment is too small";
+        if segment.capacity() < length || base < segment.base() {
+            let reason: &str = "segment is too small or base not aligned with segment";
             syslog::error!("munmap(): {reason} (base={base:?}, length={length})");
             return Err(Error::new(ErrorCode::InvalidArgument, reason));
         }
 
-        // Remove the segment from the map.
-        segments.remove(&base);
+        // Remove the segment from the map iif it is full removal.
+        if segment.capacity() == length && base == segment.base() {
+            segments.remove(&seg_base);
+            syslog::trace!("munmap(): removing segment at base {seg_base:?}");
+        } else {
+            syslog::trace!("munmap(): partial unmapping of segment at base {seg_base:?}");
+        }
 
         // Segment is unmapped when this scope ends.
 
