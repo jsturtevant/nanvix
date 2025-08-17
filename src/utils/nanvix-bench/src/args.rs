@@ -38,8 +38,8 @@ impl Args {
     fn usage() -> String {
         format!(
             "usage: ./bin/nanvix-bench.elf {} \
-             [boot-time,cold-start,cold-start-l2,warm-start,warm-start-l2,warm-start-vmm,\
-             echo-breakdown] [{} <path_to_hwloc.json> {} <iterations> {} <tmp_dir>]",
+             [boot-time,cold-start,cold-start-l2,concurremt,concurrent-l2,warm-start,warm-start-l2,\
+             warm-start-vmm,echo-breakdown] [{} <path_to_hwloc.json> {} <iterations> {} <tmp_dir>]",
             Self::OPT_BENCHMARK,
             Self::OPT_HWLOC,
             Self::OPT_ITERATIONS,
@@ -51,7 +51,7 @@ impl Args {
         let mut benchmark_str: String = String::new();
         let mut hwloc_file: Option<String> = None;
         let mut iterations: usize = 100;
-        let mut tmp_dir: String = "/tmp/".to_string();
+        let mut tmp_dir: String = "/tmp".to_string();
 
         let mut i: usize = 1;
         while i < args.len() {

@@ -408,6 +408,94 @@ impl Benchmark {
         Ok(())
     }
 
+    /// This experiment measures the time to start N VMs in serial, and have them all running
+    /// concurrently at the same time.
+    pub async fn run_concurrent(&mut self, l2: bool) -> Result<()> {
+        // TODO: FIXME
+        let num_concurrent_vms: usize = self.iterations;
+
+        // Display a progress bar
+        let pb = ProgressBar::new(u64::try_from(num_concurrent_vms)?);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{msg} [{bar:40.cyan/blue}] {pos}/{len} ({percent}%)")
+                .expect("error creating progress bar")
+                .progress_chars("#>-"),
+        );
+        pb.set_message("Benchmark progress:");
+
+        // Payload we are sending over the wire
+        const DATA_SIZE: u32 = 10;
+        let payload = [7u8; DATA_SIZE as usize];
+        let mut response_payload = [0u8; DATA_SIZE as usize];
+
+        let (new_msg_headers, new_msg) = self.prepare_new_message()?;
+
+        // Start nanvixd once.
+        self.setup(l2);
+
+        let mut latencies: Vec<u128> = Vec::with_capacity(num_concurrent_vms);
+        let mut user_vm_ids: Vec<String> = Vec::with_capacity(num_concurrent_vms);
+        let mut gateway_streams: Vec<BlockingSocketStream> = Vec::with_capacity(num_concurrent_vms);
+        for iter in 0..num_concurrent_vms {
+            // Clone all messages we need before starting the clock.
+            let new_msg_headers = new_msg_headers.clone();
+            let mut new_msg = new_msg.clone();
+            new_msg.app_name = format!("bar-{iter}");
+
+            // Start the clock.
+            let start = Instant::now();
+            let (user_vm_id, mut gateway_stream) = match self.start(new_msg, new_msg_headers, l2).await
+            {
+                Ok((user_vm_id, gateway_stream)) => (user_vm_id, gateway_stream),
+                // Break such that we can still clean-up.
+                Err(e) => {
+                    error!("error starting user vm (error={e:?})");
+                    break
+                }
+            };
+            gateway_stream.write_all(&payload)?;
+            gateway_stream.read_exact(&mut response_payload)?;
+            latencies.push(start.elapsed().as_micros());
+
+            // Persist the stream and user VM id. We need the former so that the connection is not
+            // dropped, and the latter to be able to kill the VMs after the fact.
+            user_vm_ids.push(user_vm_id);
+            gateway_streams.push(gateway_stream);
+
+            // Sanity-check the message to make sure is the same we sent.
+            if response_payload != payload {
+                error!("received payload does not match sent payload!");
+                error!(" - sent: {payload:?}");
+                error!(" - got: {response_payload:?}");
+            }
+
+            pb.inc(1);
+
+            // Be gentle for the time being.
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        pb.finish();
+        for idx in 0..latencies.len() {
+            println!("VM {idx} - {} us", latencies[idx]);
+        }
+
+        print!("Cleaning up...");
+
+        // Kill each user VM.
+        for user_vm_id in &user_vm_ids {
+            self.kill(user_vm_id.to_string()).await?;
+        }
+
+        // Stop nanvixd.
+        self.cleanup();
+
+        println!("done!");
+
+        Ok(())
+    }
+
     /// This function runs the warm start benchmark, where we measure the time to send a request
     /// into the VM once it has started executing.
     pub async fn run_warm_start(&mut self, l2: bool) -> Result<()> {
@@ -787,6 +875,34 @@ async fn main() -> Result<()> {
             #[cfg(not(feature = "timestamp-messages"))]
             {
                 benchmark.run_cold_start(true).await
+            }
+        },
+        BenchmarkFlavour::Concurrent => {
+            #[cfg(feature = "timestamp-messages")]
+            {
+                error!(
+                    "WARNING: this benchmark must be compiled with TIMESTAMP_MSG=no (or omit it)"
+                );
+                return Ok(());
+            }
+
+            #[cfg(not(feature = "timestamp-messages"))]
+            {
+                benchmark.run_concurrent(false).await
+            }
+        },
+        BenchmarkFlavour::ConcurrentL2 => {
+            #[cfg(feature = "timestamp-messages")]
+            {
+                error!(
+                    "WARNING: this benchmark must be compiled with TIMESTAMP_MSG=no (or omit it)"
+                );
+                return Ok(());
+            }
+
+            #[cfg(not(feature = "timestamp-messages"))]
+            {
+                benchmark.run_concurrent(true).await
             }
         },
         BenchmarkFlavour::WarmStart => {
