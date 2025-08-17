@@ -50,6 +50,7 @@ pub struct HttpClient {
     binary_directory: String,
     console_file: Option<String>,
     hwloc: Option<HwLoc>,
+    l2: bool,
 }
 
 impl HttpClient {
@@ -59,6 +60,7 @@ impl HttpClient {
         binary_directory: String,
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
+        l2: bool,
     ) -> Self {
         Self {
             sandbox_cache,
@@ -66,6 +68,7 @@ impl HttpClient {
             binary_directory,
             console_file,
             hwloc,
+            l2,
         }
     }
 
@@ -107,15 +110,16 @@ impl HttpClient {
         binary_directory: String,
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
+        l2: bool,
     ) -> Result<message::NewResponse> {
         let tag: SandboxTag = SandboxTag::new(&message.tenant_id, &message.app_name);
 
         let control_plane_sockaddr: String =
-            config::control_plane_sockaddr_builder(&tmp_directory, tag.tenant_id())?;
+            config::control_plane_sockaddr_builder(&tmp_directory, tag.tenant_id(), l2)?;
         let gateway_sockaddr: String =
-            config::gateway_sockaddr_builder(&tmp_directory, tag.tenant_id())?;
+            config::gateway_sockaddr_builder(&tmp_directory, tag.tenant_id(), l2)?;
         let user_vm_sockaddr: String =
-            config::user_vm_sockaddr_builder(&tmp_directory, tag.tenant_id())?;
+            config::user_vm_sockaddr_builder(&tmp_directory, tag.tenant_id(), l2)?;
         let program_args = match message.program_args.len() {
             0 => None,
             _ => Some(message.program_args.clone()),
@@ -130,6 +134,7 @@ impl HttpClient {
             console_file.clone(),
             hwloc.clone(),
             &binary_directory,
+            l2,
         );
 
         // This method will create a sandbox if it is not in the cache.
@@ -168,6 +173,7 @@ impl Service<Request<Incoming>> for HttpClient {
         let binary_directory: String = self.binary_directory.clone();
         let console_file: Option<String> = self.console_file.clone();
         let hwloc: Option<HwLoc> = self.hwloc.clone();
+        let l2: bool = self.l2;
         let sandbox_cache: Arc<Mutex<SandboxCache>> = self.sandbox_cache.clone();
         let future = async move {
             // Get the request headers before consuming the body.
@@ -218,6 +224,7 @@ impl Service<Request<Incoming>> for HttpClient {
                         binary_directory.clone(),
                         console_file.clone(),
                         hwloc.clone(),
+                        l2,
                     )
                     .await
                     {

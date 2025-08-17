@@ -26,6 +26,8 @@ pub struct SandboxConfig {
     hwloc: Option<HwLoc>,
     /// Path to the binary directory.
     binary_directory: String,
+    /// Flag to deploy linuxd in an L2 VM.
+    l2: bool,
 }
 
 //==================================================================================================
@@ -48,6 +50,7 @@ impl SandboxConfig {
     /// - `console_file`: File for console output.
     /// - `hwloc`: Hardware locality configuration.
     /// - `binary_directory`: Path to the binary directory.
+    /// - `l2`: Flag to deploy linuxd in an L2 VM.
     ///
     /// # Returns
     ///
@@ -63,6 +66,7 @@ impl SandboxConfig {
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
         binary_directory: &str,
+        l2: bool,
     ) -> Self {
         Self {
             control_plane_sockaddr: control_plane_sockaddr.to_string(),
@@ -73,6 +77,7 @@ impl SandboxConfig {
             console_file,
             hwloc,
             binary_directory: binary_directory.to_string(),
+            l2,
         }
     }
 
@@ -178,5 +183,18 @@ impl SandboxConfig {
     ///
     pub fn binary_directory(&self) -> &str {
         &self.binary_directory
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the l2 flag.
+    ///
+    /// # Returns
+    ///
+    /// The flag to enable deployment in an L2 VM.
+    ///
+    pub fn l2(&self) -> bool {
+        self.l2
     }
 }

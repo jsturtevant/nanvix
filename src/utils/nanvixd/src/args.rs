@@ -23,6 +23,8 @@ pub struct Args {
     binary_directory: String,
     console_file: Option<String>,
     hwloc: Option<HwLoc>,
+    /// Whether linuxd must be deployed in an L2 VM or not.
+    l2: bool,
 }
 
 //==================================================================================================
@@ -36,6 +38,7 @@ impl Args {
     const OPT_BIN_DIRECTORY: &'static str = "-bin-dir";
     const OPT_CONSOLE_FILE: &'static str = "-console-file";
     const OPT_HWLOC: &'static str = "-hwloc";
+    const OPT_L2: &'static str = "-l2";
 
     pub fn parse(args: Vec<String>) -> Result<Self> {
         let mut http_sockaddr: String = String::new();
@@ -43,6 +46,7 @@ impl Args {
         let mut binary_directory: String = config::DEFAULT_BIN_DIRECTORY.to_string();
         let mut console_file: Option<String> = None;
         let mut hwloc: Option<HwLoc> = None;
+        let mut l2: bool = false;
 
         let mut i: usize = 1;
         while i < args.len() {
@@ -79,6 +83,9 @@ impl Args {
                     let hwloc_reader = BufReader::new(hwloc_file);
                     hwloc = Some(serde_json::from_reader(hwloc_reader)?);
                 },
+                Self::OPT_L2 => {
+                    l2 = true;
+                },
                 arg => {
                     return Err(anyhow::anyhow!("invalid argument: {arg}"));
                 },
@@ -93,18 +100,21 @@ impl Args {
             binary_directory,
             console_file,
             hwloc,
+            l2,
         })
     }
 
     pub fn usage(program_name: &str) {
         println!(
-            "Usage: {} {} <sockaddr> [{} <file>] [{} <tmp_dir>] [{} <bin_dir>] [{} <hwloc.json>]",
+            "Usage: {} {} <sockaddr> [{} <file>] [{} <tmp_dir>] [{} <bin_dir>] [{} <hwloc.json>] \
+             [{}]",
             program_name,
             Self::OPT_HTTP_SOCKADDR,
             Self::OPT_CONSOLE_FILE,
             Self::OPT_TMP_DIRECTORY,
             Self::OPT_BIN_DIRECTORY,
-            Self::OPT_HWLOC
+            Self::OPT_HWLOC,
+            Self::OPT_L2
         );
     }
 
@@ -126,5 +136,9 @@ impl Args {
 
     pub fn hwloc(&self) -> Option<HwLoc> {
         self.hwloc.clone()
+    }
+
+    pub fn l2(&self) -> bool {
+        self.l2
     }
 }

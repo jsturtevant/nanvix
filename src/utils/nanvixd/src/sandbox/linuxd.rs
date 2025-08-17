@@ -5,22 +5,43 @@
 // Imports
 //==================================================================================================
 
-use crate::control_plane;
+use crate::{
+    config::{
+        get_clh_bin_dir,
+        get_clh_snapshot_path,
+        restore_gate_sockaddr_builder,
+    },
+    control_plane,
+};
 use ::anyhow::Result;
 use ::hwloc::HwLoc;
 use ::mio::Poll;
 use ::std::{
     process::Stdio,
+    thread,
     time::Duration,
 };
 use ::syscomm::{
+    BlockingSocketStream,
     SocketListener,
     SocketStream,
+    SocketType,
 };
 use ::tokio::process::{
     Child,
     Command,
 };
+
+/// Name for the temporary API socket used when restoring the L2 VM. We store it here and not in
+/// config.rs because this name is temporary, and used only here.
+const CLOUD_HYPERVISOR_API_SOCKET: &str = "/tmp/nanvixd-clh.sock";
+
+/// When deploying linuxd from a snapshot of an L2 VM, a few operations require polling. We want to
+/// avoid nanvixd looping forever as it is a critical piece in the control-plane, so we set a
+/// maximum number of retires.
+const MAX_NUM_RETRIES: u32 = 1000;
+/// Period to sleep between retries.
+const BACKOFF_SLEEP_MS: u32 = 1;
 
 //==================================================================================================
 // Structures
@@ -36,6 +57,65 @@ pub struct LinuxDaemon {
 //==================================================================================================
 
 impl LinuxDaemon {
+    /// Helper method to resume linuxd from a snapshot.
+    ///
+    /// We need to do two steps after we restore linuxd's state from a snapshot (in an L2 VM).
+    /// First we need to actually resume the VM's execution using cloud-hypervisor's API socket.
+    /// Then we need to "unlock" linuxd from a pre-snapshot gate that we use to control exactly
+    /// when the VM is snapshotted.
+    fn resume_l2_vm() -> Result<()> {
+        let resume_req: &str = concat!(
+            "PUT /api/v1/vm.resume HTTP/1.1\r\n",
+            "Host: localhost\r\n",
+            "Accept: */*\r\n",
+            "Content-Length: 0\r\n",
+            "\r\n",
+        );
+
+        let mut retries: u32 = 0;
+        let mut clh_api_socket: BlockingSocketStream = loop {
+            if retries >= MAX_NUM_RETRIES {
+                let reason: &str = "timed-out connecting to CLH API socket";
+                error!("{reason}");
+                return Err(anyhow::anyhow!(reason));
+            }
+
+            match SocketStream::connect(SocketType::Unix, CLOUD_HYPERVISOR_API_SOCKET.to_string()) {
+                Ok(stream) => {
+                    break stream.set_blocking()?;
+                },
+                Err(_) => {
+                    thread::sleep(Duration::from_millis(BACKOFF_SLEEP_MS.into()));
+                    retries += 1;
+                },
+            }
+        };
+
+        // Write HTTP request.
+        // TODO: this request/response flow takes a considerable portion of the restore process
+        // (almost half). We should investigate why is this the case, and whether it is a
+        // fundamental limitation.
+        clh_api_socket.write_all(resume_req.as_bytes())?;
+
+        // Wait for at least one byte of the reply, otherwise cloud-hypervisor hangs.
+        let mut buf: [u8; 1] = [0u8; 1];
+        let _ = clh_api_socket.read(&mut buf)?;
+
+        // After receiving the HTTP reply, unlock the post-snapshot gate by sending a single byte.
+        let mut stream: BlockingSocketStream =
+            SocketStream::connect(SocketType::Tcp, restore_gate_sockaddr_builder())?
+                .set_blocking()?;
+        Ok(stream.write_all(b"\n")?)
+    }
+
+    fn send_sigkill_to_child(child: Child) {
+        if let Some(pid) = child.id() {
+            debug!("killing linuxd instance (pid={pid:?})");
+            let _ = unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         control_plane_sockaddr: &str,
         user_vm_sockaddr: &str,
@@ -44,20 +124,42 @@ impl LinuxDaemon {
         binary_directory: &str,
         control_plane_listener: &mut SocketListener,
         control_plane_poll: &mut Poll,
+        l2: bool,
     ) -> Result<Self> {
         debug!(
             "spawning linux daemon (control-plane={control_plane_sockaddr}, \
-             user-vm={user_vm_sockaddr}, gateway={gateway_sockaddr})"
+             user-vm={user_vm_sockaddr}, gateway={gateway_sockaddr}, l2={l2})"
         );
-        let mut linuxd_args: Vec<String> = vec![
-            format!("{}/linuxd.elf", binary_directory),
-            "-control-plane-addr".to_string(),
-            control_plane_sockaddr.to_string(),
-            "-user-vm-bind-addr".to_string(),
-            user_vm_sockaddr.to_string(),
-            "-gateway-bind-addr".to_string(),
-            gateway_sockaddr.to_string(),
-        ];
+
+        let mut linuxd_args: Vec<String> = if l2 {
+            match std::fs::remove_file(CLOUD_HYPERVISOR_API_SOCKET) {
+                Ok(()) => {},
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+                Err(e) => {
+                    let reason: String = format!("error removing clh socket file (error={e:?})");
+                    error!("{reason}");
+                    return Err(anyhow::anyhow!(reason));
+                },
+            };
+
+            vec![
+                format!("{}/cloud-hypervisor", get_clh_bin_dir()),
+                "--api-socket".to_string(),
+                CLOUD_HYPERVISOR_API_SOCKET.to_string(),
+                "--restore".to_string(),
+                format!("source_url=file://{}", get_clh_snapshot_path()),
+            ]
+        } else {
+            vec![
+                format!("{}/linuxd.elf", binary_directory),
+                "-control-plane-addr".to_string(),
+                control_plane_sockaddr.to_string(),
+                "-user-vm-bind-addr".to_string(),
+                user_vm_sockaddr.to_string(),
+                "-gateway-bind-addr".to_string(),
+                gateway_sockaddr.to_string(),
+            ]
+        };
         if let Some(hwloc) = hwloc {
             let taskset: Vec<String> = vec![
                 "taskset".to_string(),
@@ -67,10 +169,23 @@ impl LinuxDaemon {
             linuxd_args.splice(0..0, taskset);
         }
 
-        let child = Command::new(&linuxd_args[0])
+        let child: Child = Command::new(&linuxd_args[0])
             .args(&linuxd_args[1..])
-            .stdout(Stdio::piped())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()?;
+
+        if l2 {
+            if let Err(e) = Self::resume_l2_vm() {
+                let reason: String = format!("error resuming L2 VM (error={e:?})");
+                error!("{reason}");
+
+                // Use a SIGKILL because the process is already faulty.
+                Self::send_sigkill_to_child(child);
+
+                return Err(anyhow::anyhow!("{reason}"));
+            }
+        }
 
         // After linuxd has started, accept the incoming connection and return the stream for
         // further use.
@@ -88,10 +203,7 @@ impl LinuxDaemon {
                 error!("{reason}");
 
                 // Use a SIGKILL because the process is already faulty.
-                if let Some(pid) = child.id() {
-                    debug!("killing linuxd instance (pid={pid:?})");
-                    let _ = unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
-                }
+                Self::send_sigkill_to_child(child);
 
                 return Err(anyhow::anyhow!("{reason}"));
             },
