@@ -29,6 +29,7 @@ RUN apt-get update && \
     build-essential \
     clang-format \
     curl \
+    debootstrap \
     dosfstools \
     doxygen \
     flex \
