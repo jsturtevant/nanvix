@@ -22,7 +22,7 @@ PREFIX=${1:-$PWD/toolchain}
 NANVIX_HOME=$(git rev-parse --show-toplevel)
 BIN_DIR="${PREFIX}/bin"
 SHARE_DIR="${PREFIX}/share/cloud-hypervisor"
-IMAGES_DIR="${NANVIX_HOME}/build/images"
+IMAGES_DIR="${NANVIX_HOME}/images"
 L2_SYSVM_KERNEL="${SHARE_DIR}/l2_sysvm_vmlinux.bin"
 
 # Snapshot variables.
@@ -90,7 +90,7 @@ tail_pid=$!
 
 echo -n "Waiting for CLH VM to boot..."
 while IFS= read -r line; do
-    if [[ "$line" == *"Nanvix L2 System VM init wrapper started"* ]]; then
+    if [[ "$line" == *"Linuxd hit pre-snapshot trap"* ]]; then
         echo "... CLH VM done booting!"
         sleep 1
         break

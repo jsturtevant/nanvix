@@ -14,7 +14,7 @@ set -euo pipefail
 #===================================================================================================
 
 NANVIX_HOME=$(git rev-parse --show-toplevel)
-IMAGES_DIR="${NANVIX_HOME}/build/images"
+IMAGES_DIR="${NANVIX_HOME}/images"
 INITRAMFS_IMAGE="${IMAGES_DIR}/l2_sysvm_initramfs.img"
 INITRAMFS_DIR="${IMAGES_DIR}/l2-sysvm-rootfs"
 LINUXD_ELF="${NANVIX_HOME}/bin/linuxd.elf"
@@ -88,7 +88,8 @@ echo "[init] Nanvix L2 System VM passed init gate. Starting linuxd..."
     -user-vm-bind-addr ${USER_VM_SOCKADDR} \
     -user-vm-bind-socket-type tcp \
     -gateway-bind-addr ${GATEWAY_SOCKADDR} \
-    -gateway-bind-socket-type tcp
+    -gateway-bind-socket-type tcp \
+    -l2
 
 echo "[init] Nanvix L2 System VM shutting down!"
 busybox poweroff -f
