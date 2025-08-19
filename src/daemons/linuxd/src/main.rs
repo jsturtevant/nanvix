@@ -63,7 +63,6 @@ use ::sys::{
 use ::syscomm::{
     Socket,
     SocketListener,
-    SocketStream,
     SocketType,
 };
 use sys::pm::ThreadIdentifier;
@@ -94,6 +93,9 @@ pub fn main() -> Result<()> {
     let control_plane_sockaddr: String = args.control_plane_sockaddr();
     let user_vm_sockaddr: String = args.user_vm_bind_sockaddr();
     let gateway_sockaddr: Option<String> = args.gateway_bind_sockaddr();
+
+    // Deployed in an L2 VM?
+    let in_l2: bool = args.l2();
 
     // Work-out the socket-types.
     let control_plane_socket_type: SocketType = match args.control_plane_socket_type() {
@@ -129,22 +131,6 @@ pub fn main() -> Result<()> {
         None => DEFAULT_GATEWAY_SOCKET_TYPE,
     };
 
-    // Connect the control-plane socket.
-    let control_plane_stream: SocketStream =
-        match SocketStream::connect(control_plane_socket_type, control_plane_sockaddr.clone()) {
-            Ok(socket) => {
-                info!("Connected to control plane on: {:?}", control_plane_sockaddr);
-                socket
-            },
-            Err(e) => {
-                error!(
-                    "failed to connect to control-plane socket address (address={}, error={e:?})",
-                    control_plane_sockaddr.clone()
-                );
-                anyhow::bail!("failed to connect to control-plane socket address");
-            },
-        };
-
     // Start listening for incoming connections from user VMs associated to this linuxd instance.
     let user_vm_listener: SocketListener =
         match Socket::bind(user_vm_bind_socket_type, user_vm_sockaddr.clone()) {
@@ -174,11 +160,16 @@ pub fn main() -> Result<()> {
         None => None,
     };
 
-    let procd: LinuxDaemon =
-        match LinuxDaemon::init(control_plane_stream, user_vm_listener, gateway_listener) {
-            Ok(procd) => procd,
-            Err(e) => panic!("failed to initialize process manager daemon (error={e:?})"),
-        };
+    let procd: LinuxDaemon = match LinuxDaemon::init(
+        control_plane_sockaddr,
+        control_plane_socket_type,
+        user_vm_listener,
+        gateway_listener,
+        in_l2,
+    ) {
+        Ok(procd) => procd,
+        Err(e) => panic!("failed to initialize process manager daemon (error={e:?})"),
+    };
 
     // Run main procd loop.
     let procd_ret = procd.run();
