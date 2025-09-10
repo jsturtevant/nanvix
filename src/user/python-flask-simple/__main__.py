@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 def main():
-    print("Testing Flask import and basic functionality...")
+    print("Testing Flask with app.run()...")
     
     try:
         from flask import Flask, jsonify
@@ -26,15 +26,24 @@ def main():
             })
         
         print("✓ Flask app created with routes")
-        print("✓ Flask basic test complete!")
         
-        # Note: We're not calling app.run() since that would try to start a server
-        # which might hit the same fd limits as Django
+        # Try to run the server
+        print("Attempting to start Flask development server...")
+        print("This will try to bind to localhost:5000")
+        
+        # Run with minimal configuration
+        app.run(
+            host='127.0.0.1',  # localhost only
+            port=5000,
+            debug=False,       # disable debug mode (fewer file operations)
+            threaded=False,    # disable threading (simpler)
+            use_reloader=False # disable auto-reloader (fewer file watches)
+        )
         
     except ImportError as e:
         print(f"✗ Failed to import Flask: {e}")
     except Exception as e:
-        print(f"✗ Error with Flask: {e}")
+        print(f"✗ Error with Flask server: {e}")
         import traceback
         traceback.print_exc()
 
