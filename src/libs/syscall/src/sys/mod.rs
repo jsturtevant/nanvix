@@ -20,6 +20,9 @@ pub mod time;
 /// File access and modification times structure.
 pub mod times;
 
+/// Vector I/O operations.
+pub mod uio;
+
 /// Definitions for UNIX domain sockets.
 pub mod un;
 

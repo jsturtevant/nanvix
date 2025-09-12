@@ -51,12 +51,9 @@ use ::sysapi::{
             SHUT_WR,
         },
         socket_types::{
-            SOCK_DGRAM,
             SOCK_RAW,
             SOCK_SEQPACKET,
-            SOCK_STREAM,
         },
-        socklen_t,
     },
     sys_un::{
         sockaddr_un,
@@ -64,10 +61,41 @@ use ::sysapi::{
     },
 };
 
+pub use ::sysapi::{
+    netinet_in::message_flags::{
+        MSG_OOB,
+        MSG_PEEK,
+    },
+    sys_socket::{
+        linger,
+        sa_family_t,
+        sockaddr_storage,
+        socklen_t,
+        sockopt_option_names::{
+            SO_BROADCAST,
+            SO_ERROR,
+            SO_KEEPALIVE,
+            SO_LINGER,
+            SO_RCVBUF,
+            SO_RCVTIMEO,
+            SO_REUSEADDR,
+            SO_SNDBUF,
+            SO_SNDTIMEO,
+            SO_TYPE,
+        },
+        socket_types::{
+            SOCK_DGRAM,
+            SOCK_STREAM,
+        },
+        SOL_SOCKET,
+    },
+};
+
 //==================================================================================================
 // Modules
 //==================================================================================================
 
+pub mod family;
 pub mod message;
 
 cfg_if::cfg_if! {
@@ -121,11 +149,11 @@ impl TryFrom<i32> for AddressFamily {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketType {
     /// Provides sequenced, reliable, bidirectional, connection-mode byte streams.
-    Stream = SOCK_STREAM,
+    Stream = self::SOCK_STREAM,
     /// Provides raw network protocol access.
     Raw = SOCK_RAW,
     /// Provides datagrams, which are connectionless-mode, unreliable messages of fixed maximum length.
-    Datagram = SOCK_DGRAM,
+    Datagram = self::SOCK_DGRAM,
     /// Provides sequenced, reliable, bidirectional, connection-mode transmission paths for records.
     SeqPacket = SOCK_SEQPACKET,
 }
@@ -135,9 +163,9 @@ impl TryFrom<i32> for SocketType {
 
     fn try_from(socket_type: i32) -> Result<Self, Self::Error> {
         match socket_type {
-            SOCK_STREAM => Ok(SocketType::Stream),
+            x if x == self::SOCK_STREAM => Ok(SocketType::Stream),
             SOCK_RAW => Ok(SocketType::Raw),
-            SOCK_DGRAM => Ok(SocketType::Datagram),
+            x if x == self::SOCK_DGRAM => Ok(SocketType::Datagram),
             SOCK_SEQPACKET => Ok(SocketType::SeqPacket),
             _unsupported_socket_type => {
                 Err(Error::new(ErrorCode::BadProtocolType, "socket type not supported"))
@@ -345,20 +373,20 @@ impl From<&SocketAddr> for sockaddr {
     }
 }
 
-impl From<SocketAddr> for (sockaddr, socklen_t) {
-    fn from(addr: SocketAddr) -> (sockaddr, socklen_t) {
+impl From<SocketAddr> for (sockaddr, self::socklen_t) {
+    fn from(addr: SocketAddr) -> (sockaddr, self::socklen_t) {
         (&addr).into()
     }
 }
 
-impl From<&SocketAddr> for (sockaddr, socklen_t) {
-    fn from(addr: &SocketAddr) -> (sockaddr, socklen_t) {
+impl From<&SocketAddr> for (sockaddr, self::socklen_t) {
+    fn from(addr: &SocketAddr) -> (sockaddr, self::socklen_t) {
         match addr {
             SocketAddr::V4(sockaddr) => {
-                (sockaddr::from(sockaddr), mem::size_of::<sockaddr>() as socklen_t)
+                (sockaddr::from(sockaddr), mem::size_of::<sockaddr>() as self::socklen_t)
             },
             SocketAddr::Unix(sockaddr) => {
-                (sockaddr::from(sockaddr), mem::size_of::<sockaddr>() as socklen_t)
+                (sockaddr::from(sockaddr), mem::size_of::<sockaddr>() as self::socklen_t)
             },
         }
     }
