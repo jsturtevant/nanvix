@@ -50,10 +50,6 @@ use ::sysapi::{
             SHUT_RDWR,
             SHUT_WR,
         },
-        socket_types::{
-            SOCK_RAW,
-            SOCK_SEQPACKET,
-        },
     },
     sys_un::{
         sockaddr_un,
@@ -85,11 +81,19 @@ pub use ::sysapi::{
         },
         socket_types::{
             SOCK_DGRAM,
+            SOCK_RAW,
+            SOCK_SEQPACKET,
             SOCK_STREAM,
         },
         SOL_SOCKET,
     },
 };
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "syscall")] {
+        pub use self::bindings::socketpair::socketpair;
+    }
+}
 
 //==================================================================================================
 // Modules
@@ -151,11 +155,11 @@ pub enum SocketType {
     /// Provides sequenced, reliable, bidirectional, connection-mode byte streams.
     Stream = self::SOCK_STREAM,
     /// Provides raw network protocol access.
-    Raw = SOCK_RAW,
+    Raw = self::SOCK_RAW,
     /// Provides datagrams, which are connectionless-mode, unreliable messages of fixed maximum length.
     Datagram = self::SOCK_DGRAM,
     /// Provides sequenced, reliable, bidirectional, connection-mode transmission paths for records.
-    SeqPacket = SOCK_SEQPACKET,
+    SeqPacket = self::SOCK_SEQPACKET,
 }
 
 impl TryFrom<i32> for SocketType {
@@ -164,9 +168,9 @@ impl TryFrom<i32> for SocketType {
     fn try_from(socket_type: i32) -> Result<Self, Self::Error> {
         match socket_type {
             x if x == self::SOCK_STREAM => Ok(SocketType::Stream),
-            SOCK_RAW => Ok(SocketType::Raw),
+            x if x == self::SOCK_RAW => Ok(SocketType::Raw),
             x if x == self::SOCK_DGRAM => Ok(SocketType::Datagram),
-            SOCK_SEQPACKET => Ok(SocketType::SeqPacket),
+            x if x == self::SOCK_SEQPACKET => Ok(SocketType::SeqPacket),
             _unsupported_socket_type => {
                 Err(Error::new(ErrorCode::BadProtocolType, "socket type not supported"))
             },

@@ -2,6 +2,21 @@
 // Licensed under the MIT License.
 
 //==================================================================================================
+// Re-exports
+//==================================================================================================
+
+// Re-export constants that socket2 expects to find directly in sys module
+pub use crate::netinet::in_::bindings::{
+    IP_HDRINCL,
+    IPV6_RECVHOPLIMIT,
+    ipproto::IPPROTO_IPV6,
+};
+pub use crate::sys::socket::{
+    SOCK_RAW,
+    SOCK_SEQPACKET,
+};
+
+//==================================================================================================
 // Modules
 //==================================================================================================
 
