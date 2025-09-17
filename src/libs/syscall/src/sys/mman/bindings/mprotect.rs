@@ -12,9 +12,11 @@
 // Standalone Functions
 //==================================================================================================
 
+use sysapi::ffi::c_void;
+
 #[allow(clippy::missing_safety_doc)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn mprotect(addr: *mut u8, length: usize, prot: i32) -> isize {
+pub unsafe extern "C" fn mprotect(addr: *mut c_void, length: usize, prot: i32) -> isize {
     ::syslog::trace!("mprotect(): addr={addr:?}, length={length}, prot={prot}");
 
     ::syslog::error!("mprotect(): not implemented, returning 0");
