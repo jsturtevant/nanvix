@@ -11,13 +11,11 @@
 // Imports
 //==================================================================================================
 
-#[cfg(target_pointer_width = "32")]
 use crate::sys_types::size_t;
 
 //==================================================================================================
 
 /// An I/O vector.
-#[cfg(target_pointer_width = "32")]
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct iovec {
