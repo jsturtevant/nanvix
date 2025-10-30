@@ -3,8 +3,8 @@
 
 //! Linux Daemon management for single-process mode.
 //!
-//! This module provides functionality to spawn and manage Linux Daemon instances as async
-//! tasks within the same process. This mode is primarily used for testing and development,
+//! This module provides functionality for spawning and managing Linux Daemon instances as
+//! tasks within the same process.
 //! avoiding the overhead of process creation and simplifying debugging.
 
 //==================================================================================================
@@ -90,16 +90,19 @@ impl LinuxDaemon {
             args.system_vm_socket_info()
         );
 
-        // Check if CPU affinity settings were provided.
-        if let Some(hwloc) = args.hwloc() {
-            warn!("spawn(): single-process mode ignores hwloc affinity settings (hwloc={hwloc:?})");
+        // Check hwloc affinity settings.
+        if args.hwloc().is_some() {
+            warn!(
+                "spawn(): default mode ignores hwloc affinity settings (hwloc={:?})",
+                args.hwloc()
+            );
         }
 
-        // Check if L2 mode was requested.
+        // Check L2 deployment.
         if args.l2() {
-            let reason: &str = "single-process mode does not support L2 deployments";
+            let reason: &str = "default mode does not support L2 deployments";
             error!("spawn(): {reason}");
-            anyhow::bail!("{reason}");
+            anyhow::bail!(reason);
         }
 
         // Create a socket to listen for user VM connections.

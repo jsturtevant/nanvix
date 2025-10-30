@@ -3,9 +3,8 @@
 
 //! Single-process sandbox implementation.
 //!
-//! This module provides sandboxing functionality where Linux Daemon and User VM instances
-//! are spawned as tasks within the same process. This mode is primarily used for testing
-//! and development purposes.
+//! This module provides the default sandboxing functionality where Linux Daemon and User VM
+//! instances are spawned as tasks within the same process.
 
 //==================================================================================================
 // Modules

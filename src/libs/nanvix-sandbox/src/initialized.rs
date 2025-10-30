@@ -90,7 +90,7 @@ impl InitializedSandbox {
         let hwloc: Option<hwloc::HwLoc> = self.sandbox_config.hwloc();
         let log_directory: String = self.sandbox_config.log_directory().to_string();
         let uservm_id: ::user_vm_api::UserVmIdentifier = self.sandbox_config.uservm_id();
-        #[cfg(not(feature = "single-process"))]
+        #[cfg(feature = "multi-process")]
         let uservm_binary_path: String = self.sandbox_config.uservm_binary_path().to_string();
 
         // Extract gateway socket info (consumes the config to get ownership of TcpPort).
@@ -117,7 +117,7 @@ impl InitializedSandbox {
                     console_file,
                     hwloc,
                     self.kernel_binary_path.clone(),
-                    #[cfg(not(feature = "single-process"))]
+                    #[cfg(feature = "multi-process")]
                     uservm_binary_path,
                     log_directory,
                     uservm_id,

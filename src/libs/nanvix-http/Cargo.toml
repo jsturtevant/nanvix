@@ -31,10 +31,10 @@ user-vm-api = { workspace = true }
 
 [features]
 default = []
-single-process = [
+multi-process = [
     "linuxd",
-    "nanvix-sandbox-cache/single-process",
-    "nanvix-terminal/single-process",
+    "nanvix-sandbox-cache/multi-process",
+    "nanvix-terminal/multi-process",
 ]
 hyperlight = [
     "config/hyperlight",

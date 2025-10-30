@@ -16,7 +16,7 @@ use ::syslog::error;
 use ::tokio::time::Duration;
 use ::user_vm_api::UserVmIdentifier;
 
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 use ::std::{
     fs,
     path::PathBuf,
@@ -99,7 +99,7 @@ const UNIX_SOCKET_SUFFIX: &str = ".socket";
 ///
 /// The absolute path to the source code root.
 ///
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 fn get_proj_root() -> String {
     format!("{}/../../..", env!("CARGO_MANIFEST_DIR"))
 }
@@ -122,7 +122,7 @@ fn get_proj_root() -> String {
 /// On success, the absolute path to cloud-hypervisor's binary directory. On failure, an error is
 /// returned instead.
 ///
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 pub(crate) fn get_clh_bin_dir(toolchain_bin_dir: &str) -> Result<String> {
     let clh_bin_dir_path: PathBuf = PathBuf::from(toolchain_bin_dir);
     Ok(format!("{}", fs::canonicalize(clh_bin_dir_path)?.display()))
@@ -137,7 +137,7 @@ pub(crate) fn get_clh_bin_dir(toolchain_bin_dir: &str) -> Result<String> {
 ///
 /// The absolute path to cloud-hypervisor's snapshot directory.
 ///
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 pub(crate) fn get_clh_snapshot_path() -> String {
     format!("{}/images/{}", get_proj_root(), ::config::linuxd::SNAPSHOT_NAME)
 }
@@ -155,7 +155,7 @@ pub(crate) fn get_clh_snapshot_path() -> String {
 ///
 /// The absolute path to cloud-hypervisor's API socket.
 ///
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 pub(crate) fn get_clh_api_socket_path(tmp_dir: &str) -> String {
     format!("{tmp_dir}/nanvixd-clh{UNIX_SOCKET_SUFFIX}")
 }

@@ -26,7 +26,7 @@ uservm = { workspace = true }
 
 [features]
 default = []
-# If enabled this feature is enabled, the Linux Daemon (linuxd) and User VM (uservm) are embedded
-# into the sandbox.
-single-process = []
+# If this feature is enabled, the Linux Daemon (linuxd) and User VM (uservm) are spawned as
+# separate OS processes.
+multi-process = []
 hyperlight = ["config/hyperlight", "uservm/hyperlight"]

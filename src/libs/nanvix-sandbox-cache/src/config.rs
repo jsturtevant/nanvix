@@ -44,13 +44,13 @@ pub struct SandboxCacheConfig {
     /// Path to kernel binary.
     kernel_binary_path: String,
     /// Path to the Linux Daemon binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     linuxd_binary_path: String,
     /// Path to the User VM binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     uservm_binary_path: String,
     /// System call table.
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     syscall_table: Option<::std::sync::Arc<::nanvix_sandbox::SyscallTable>>,
     /// Path to the toolchain binary directory containing cloud-hypervisor and other tools.
     toolchain_binary_directory: String,
@@ -80,9 +80,9 @@ impl SandboxCacheConfig {
     /// - `console_file`: Optional file path for redirecting console output.
     /// - `hwloc`: Optional hardware locality configuration.
     /// - `kernel_binary_path`: Path to kernel binary.
-    /// - `linuxd_binary_path`: Path to the Linux Daemon binary (only if not in single-process mode).
-    /// - `uservm_binary_path`: Path to the User VM binary (only if not in single-process mode).
-    /// - `syscall_table`: Optional system call table (only in single-process mode).
+    /// - `linuxd_binary_path`: Path to the Linux Daemon binary (only if in multi-process mode).
+    /// - `uservm_binary_path`: Path to the User VM binary (only if in multi-process mode).
+    /// - `syscall_table`: Optional system call table (only if not in multi-process mode).
     /// - `toolchain_binary_directory`: Path to the toolchain binary directory.
     /// - `log_directory`: Path to the log directory.
     /// - `l2`: Flag to deploy linuxd inside an L2 VM.
@@ -100,9 +100,9 @@ impl SandboxCacheConfig {
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
         kernel_binary_path: &str,
-        #[cfg(not(feature = "single-process"))] linuxd_binary_path: &str,
-        #[cfg(not(feature = "single-process"))] uservm_binary_path: &str,
-        #[cfg(feature = "single-process")] syscall_table: Option<
+        #[cfg(feature = "multi-process")] linuxd_binary_path: &str,
+        #[cfg(feature = "multi-process")] uservm_binary_path: &str,
+        #[cfg(not(feature = "multi-process"))] syscall_table: Option<
             ::std::sync::Arc<::nanvix_sandbox::SyscallTable>,
         >,
         toolchain_binary_directory: &str,
@@ -117,11 +117,11 @@ impl SandboxCacheConfig {
             console_file,
             hwloc,
             kernel_binary_path: kernel_binary_path.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             linuxd_binary_path: linuxd_binary_path.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             uservm_binary_path: uservm_binary_path.to_string(),
-            #[cfg(feature = "single-process")]
+            #[cfg(not(feature = "multi-process"))]
             syscall_table,
             toolchain_binary_directory: toolchain_binary_directory.to_string(),
             log_directory: log_directory.to_string(),
@@ -217,7 +217,7 @@ impl SandboxCacheConfig {
     ///
     /// The path to the Linux Daemon binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn linuxd_binary_path(&self) -> &str {
         &self.linuxd_binary_path
     }
@@ -231,7 +231,7 @@ impl SandboxCacheConfig {
     ///
     /// The path to the User VM binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn uservm_binary_path(&self) -> &str {
         &self.uservm_binary_path
     }
@@ -246,7 +246,7 @@ impl SandboxCacheConfig {
     /// If a system call table is set, this function returns a handle to it. Otherwise, it returns
     /// empty.
     ///
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     pub fn syscall_table(&self) -> Option<::std::sync::Arc<::nanvix_sandbox::SyscallTable>> {
         self.syscall_table.clone()
     }

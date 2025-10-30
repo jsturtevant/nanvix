@@ -29,12 +29,12 @@ uservm = { workspace = true, optional = true }
 [features]
 default = []
 internal-api = ["sys", "syscall", "uservm"]
-single-process = [
+multi-process = [
     "linuxd",
-    "nanvix-http/single-process",
-    "nanvix-sandbox/single-process",
-    "nanvix-sandbox-cache/single-process",
-    "nanvix-terminal/single-process",
+    "nanvix-http/multi-process",
+    "nanvix-sandbox/multi-process",
+    "nanvix-sandbox-cache/multi-process",
+    "nanvix-terminal/multi-process",
 ]
 hyperlight = [
     "config/hyperlight",

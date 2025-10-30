@@ -25,5 +25,5 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 default = []
 timestamp-messages = ["profiler/timestamp-messages"]
-single-process = ["nanvix/single-process"]
+multi-process = ["nanvix/multi-process"]
 hyperlight = ["nanvix/hyperlight"]

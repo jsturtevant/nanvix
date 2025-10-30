@@ -257,13 +257,13 @@ impl UninitializedSandbox {
                         ),
                         config.system_vm_socket_info().clone(),
                         config.hwloc(),
-                        #[cfg(not(feature = "single-process"))]
+                        #[cfg(feature = "multi-process")]
                         config.linuxd_binary_path().to_string(),
                         toolchain_binary_directory,
                         config.log_directory().to_string(),
                         tmp_directory,
                         l2,
-                        #[cfg(feature = "single-process")]
+                        #[cfg(not(feature = "multi-process"))]
                         config.syscall_table(),
                     )
                 };

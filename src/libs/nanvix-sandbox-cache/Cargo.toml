@@ -21,4 +21,4 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 default = []
 hyperlight = ["config/hyperlight", "nanvix-sandbox/hyperlight"]
-single-process = ["nanvix-sandbox/single-process"]
+multi-process = ["nanvix-sandbox/multi-process"]

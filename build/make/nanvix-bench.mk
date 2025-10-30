@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 NANVIX_BENCH_FEATURES :=
-NANVIX_BENCH_FEATURES += $(if $(filter yes,$(SINGLE_PROCESS)),single-process,)
+NANVIX_BENCH_FEATURES += $(if $(filter yes,$(SINGLE_PROCESS)),,multi-process)
 NANVIX_BENCH_FEATURES += $(if $(filter hyperlight,$(MACHINE)),hyperlight,)
 NANVIX_BENCH_FEATURES := $(strip $(NANVIX_BENCH_FEATURES))
 NANVIX_BENCH_CARGO_FEATURES := $(if $(NANVIX_BENCH_FEATURES),--features "$(NANVIX_BENCH_FEATURES)")

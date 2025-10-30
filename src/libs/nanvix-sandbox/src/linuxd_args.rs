@@ -30,7 +30,7 @@ pub struct LinuxDaemonArgs {
     /// Optional hardware locality configuration for CPU affinity and topology information.
     hwloc: Option<hwloc::HwLoc>,
     /// Path to Linux Daemon binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     linuxd_binary_path: String,
     /// Path to the toolchain binary directory containing cloud-hypervisor and other tools.
     toolchain_binary_directory: String,
@@ -41,7 +41,7 @@ pub struct LinuxDaemonArgs {
     /// Flag to deploy linuxd inside an L2 VM (using cloud-hypervisor).
     l2: bool,
     /// Optional system call table for overriding default system call behavior.
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     syscall_table: Option<::std::sync::Arc<::linuxd::syscalls::SyscallTable>>,
 }
 
@@ -60,12 +60,12 @@ impl LinuxDaemonArgs {
     /// - `control_plane_socket_info`: Information on control plane socket (address, socket type).
     /// - `system_vm_socket_info`: Information on System VM socket (address, socket type).
     /// - `hwloc`: Optional hardware locality configuration for CPU affinity and topology information.
-    /// - `linuxd_binary_path`: Path to Linux Daemon binary (only if not in single-process mode).
+    /// - `linuxd_binary_path`: Path to Linux Daemon binary (only if in multi-process mode).
     /// - `toolchain_binary_directory`: Path to the toolchain binary directory containing cloud-hypervisor and other tools.
     /// - `log_directory`: Directory path for writing log files.
     /// - `tmp_directory`: Temporary directory path for Unix sockets and transient files.
     /// - `l2`: Flag to deploy linuxd inside an L2 VM (using cloud-hypervisor).
-    /// - `syscall_table`: Optional system call table for overriding default system call behavior (only if in single-process mode).
+    /// - `syscall_table`: Optional system call table for overriding default system call behavior (only if not in multi-process mode).
     ///
     /// # Returns
     ///
@@ -76,12 +76,12 @@ impl LinuxDaemonArgs {
         control_plane_socket_info: (String, SocketType),
         system_vm_socket_info: (String, SocketType),
         hwloc: Option<hwloc::HwLoc>,
-        #[cfg(not(feature = "single-process"))] linuxd_binary_path: String,
+        #[cfg(feature = "multi-process")] linuxd_binary_path: String,
         toolchain_binary_directory: String,
         log_directory: String,
         tmp_directory: String,
         l2: bool,
-        #[cfg(feature = "single-process")] syscall_table: Option<
+        #[cfg(not(feature = "multi-process"))] syscall_table: Option<
             ::std::sync::Arc<::linuxd::syscalls::SyscallTable>,
         >,
     ) -> Self {
@@ -89,13 +89,13 @@ impl LinuxDaemonArgs {
             control_plane_socket_info,
             system_vm_socket_info,
             hwloc,
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             linuxd_binary_path,
             toolchain_binary_directory,
             log_directory,
             tmp_directory,
             l2,
-            #[cfg(feature = "single-process")]
+            #[cfg(not(feature = "multi-process"))]
             syscall_table,
         }
     }
@@ -148,7 +148,7 @@ impl LinuxDaemonArgs {
     ///
     /// The path to the Linux Daemon binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn linuxd_binary_path(&self) -> &str {
         &self.linuxd_binary_path
     }
@@ -214,7 +214,7 @@ impl LinuxDaemonArgs {
     ///
     /// An optional reference to the system call table.
     ///
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     pub fn syscall_table(&self) -> Option<::std::sync::Arc<::linuxd::syscalls::SyscallTable>> {
         self.syscall_table.clone()
     }

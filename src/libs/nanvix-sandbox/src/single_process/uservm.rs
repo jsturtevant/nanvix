@@ -1,11 +1,12 @@
 // Copyright(c) The Maintainers of Nanvix.
 // Licensed under the MIT License.
 
+// Licensed under the MIT License.
+
 //! User VM management for single-process mode.
 //!
-//! This module provides functionality to spawn and manage User VM instances as async tasks
-//! within the same process. This mode simplifies testing and development by running all
-//! components in a single process, making debugging and profiling easier.
+//! This module provides functionality for spawning and managing User VM instances as tasks
+//! within the same process.
 
 //==================================================================================================
 // Imports
@@ -108,7 +109,7 @@ impl UserVm {
 
         // Check if CPU affinity settings were provided.
         if let Some(hwloc) = args.hwloc() {
-            warn!("spawn(): single-process mode ignores hwloc affinity settings (hwloc={hwloc:?})");
+            warn!("spawn(): default mode ignores hwloc affinity settings (hwloc={hwloc:?})");
         }
 
         // Clone configuration values to move to User VM task.
