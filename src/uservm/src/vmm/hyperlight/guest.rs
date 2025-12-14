@@ -59,7 +59,7 @@ impl Guest {
         let credits_offset: usize = manager.get_guest_credits_offset();
         manager
             .get_shared_mem_mut()
-            .write::<u64>(credits_offset, self.credits)?;
+            .write_u64(credits_offset, self.credits)?;
 
         Ok(())
     }
@@ -90,7 +90,7 @@ impl Guest {
         let credits_offset: usize = manager.get_guest_credits_offset();
         manager
             .get_shared_mem_mut()
-            .write::<u64>(credits_offset, self.credits)?;
+            .write_u64(credits_offset, self.credits)?;
 
         Ok(())
     }

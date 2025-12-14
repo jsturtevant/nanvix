@@ -67,23 +67,6 @@ impl ProcessEnvironmentBlock {
         }
     }
 
-    /// Sets the guest function dispatch pointer.
-    ///
-    /// # Safety
-    /// This function is unsafe because it dereferences a raw pointer.
-    pub unsafe fn set_guest_function_dispatch_ptr(ptr: u64) -> Result<(), Error> {
-        match GUEST_HANDLE.peb() {
-            Some(peb_ptr) => {
-                (*peb_ptr).guest_function_dispatch_ptr = ptr;
-                Ok(())
-            },
-            None => {
-                let reason: &'static str = "set_guest_function_dispatch_ptr: peb not initialized";
-                error!("{reason}");
-                Err(Error::new(ErrorCode::NoSuchDevice, reason))
-            },
-        }
-    }
 
     /// Writes a string to the guest's standard output.
     ///
@@ -107,11 +90,11 @@ impl ProcessEnvironmentBlock {
     pub unsafe fn get_credits() -> Result<u64, Error> {
         match GUEST_HANDLE.peb() {
             Some(peb_ptr) => {
-                // Credits_value is updated asynchronously by the host;
+                // Get the pointer to the credits value in scratch memory.
+                let credits_ptr: u64 = (*peb_ptr).credits.ptr;
+                // Credits value is updated asynchronously by the host;
                 // so we use a volatile read to avoid reading stale data.
-                Ok(::core::ptr::read_volatile::<u64>(::core::ptr::addr_of!(
-                    (*peb_ptr).credits_value
-                )))
+                Ok(::core::ptr::read_volatile::<u64>(credits_ptr as *const u64))
             },
             None => {
                 let reason: &'static str = "get_credits: peb not initialized";

@@ -109,7 +109,7 @@ impl Vmm {
         let stack_size: usize = 4 * 1024;
         let memory_size: usize = args.memory_size;
 
-        let guest_env: GuestEnvironment = if let Some(initrd_filename) = &args.initrd_filename {
+        let guest_env_and_extra: (GuestEnvironment, Option<usize>) = if let Some(initrd_filename) = &args.initrd_filename {
             match std::fs::read(initrd_filename) {
                 Ok(bytes) => {
                     let initrd_size: usize = bytes.len();
@@ -187,14 +187,7 @@ impl Vmm {
                     let boxed_data: Box<[u8]> = padded_bytes.into_boxed_slice();
                     let data_ref: &'static [u8] = Box::leak(boxed_data);
 
-                    let extra_memory: u64 = padding_size.try_into().map_err(|_| {
-                        let reason: String =
-                            format!("padding size {} exceeds supported range", padding_size);
-                        error!("initrd(): {}", reason);
-                        anyhow::anyhow!(reason)
-                    })?;
-
-                    GuestEnvironment {
+                    (GuestEnvironment {
                         guest_binary: GuestBinary::FilePath(args.kernel_filename.to_string()),
                         init_data: Some(GuestBlob {
                             data: data_ref,
@@ -202,8 +195,7 @@ impl Vmm {
                                 | MemoryRegionFlags::WRITE
                                 | MemoryRegionFlags::EXECUTE,
                         }),
-                        extra_memory: Some(extra_memory),
-                    }
+                    }, Some(padding_size))
                 },
                 Err(err) => {
                     let reason: String = format!("failed to read initrd file {err:?}");
@@ -212,23 +204,23 @@ impl Vmm {
                 },
             }
         } else {
-            GuestEnvironment::new(GuestBinary::FilePath(args.kernel_filename.to_string()), None)
+            (GuestEnvironment::new(GuestBinary::FilePath(args.kernel_filename.to_string()), None), None)
         };
 
+        let (guest_env, extra_memory_size) = guest_env_and_extra;
+
         let mut config: SandboxConfiguration = SandboxConfiguration::default();
+        
+        // Set extra_memory size if we have padding from initrd allocation
+        if let Some(extra_mem_size) = extra_memory_size {
+            config.set_extra_memory_size(extra_mem_size);
+        }
         let heap_size_u64: u64 = u64::try_from(heap_size).map_err(|_| {
             let reason: String = format!("heap size {} exceeds supported range", heap_size);
             error!("hyperlight::new(): {}", reason);
             anyhow::anyhow!(reason)
         })?;
         config.set_heap_size(heap_size_u64);
-
-        let stack_size_u64: u64 = u64::try_from(stack_size).map_err(|_| {
-            let reason: String = format!("stack size {} exceeds supported range", stack_size);
-            error!("hyperlight::new(): {}", reason);
-            anyhow::anyhow!(reason)
-        })?;
-        config.set_stack_size(stack_size_u64);
 
         // Creates Hyperlight sandbox.
         let mut sandbox: UninitializedSandbox = UninitializedSandbox::new(guest_env, Some(config))?;

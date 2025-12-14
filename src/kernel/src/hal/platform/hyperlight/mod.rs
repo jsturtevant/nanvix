@@ -50,7 +50,6 @@ use ::arch::{
 };
 use ::hyperlight_common::mem::HyperlightPEB;
 use ::sys::{
-    config::memory_layout,
     error::{
         Error,
         ErrorCode,
@@ -243,7 +242,6 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
 
     unsafe {
         ProcessEnvironmentBlock::init(peb_ptr)?;
-        ProcessEnvironmentBlock::set_guest_function_dispatch_ptr(0xdeadbeef)?;
     };
 
     // Read actual size and relocate only that amount
@@ -311,6 +309,7 @@ pub fn init(
     extern "C" {
         static __KERNEL_END: u8;
     }
+    
     // Register PEB structure.
     let peb_base: usize =
         ::sys::mm::align_up(unsafe { &__KERNEL_END } as *const u8 as usize, PAGE_ALIGNMENT);
@@ -324,79 +323,67 @@ pub fn init(
     )?;
     memory_regions.push_back(peb);
 
-    // Register host function definitions
-    let host_function_definitions_base: usize = peb_base + PEB_SIZE;
-    const HOST_FUNCTION_DEFINITIONS_SIZE: usize = mem::PAGE_SIZE;
-    let host_function_definitions: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "host function definitions",
-        VirtualAddress::from_raw_value(host_function_definitions_base),
-        HOST_FUNCTION_DEFINITIONS_SIZE,
-        MemoryRegionType::Reserved,
-        AccessPermission::RDONLY,
-    )?;
-    memory_regions.push_back(host_function_definitions);
+    // Discover memory regions from PEB (guest-COW uses dynamic layout in scratch memory).
+    let peb_ptr: *const HyperlightPEB = peb_base as *const HyperlightPEB;
+    
+    // Register input stack buffer from PEB.
+    let input_stack_ptr: u64 = unsafe { (*peb_ptr).input_stack.ptr };
+    let input_stack_size: u64 = unsafe { (*peb_ptr).input_stack.size };
+    if input_stack_size > 0 {
+        let input_stack: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+            "input stack",
+            VirtualAddress::from_raw_value(input_stack_ptr as usize),
+            input_stack_size as usize,
+            MemoryRegionType::Mmio,
+            AccessPermission::RDWR,
+        )?;
+        memory_regions.push_back(input_stack);
+    }
 
-    // Register input data buffer.
-    let input_data_base: usize = host_function_definitions_base + HOST_FUNCTION_DEFINITIONS_SIZE;
-    const INPUT_DATA_BUFFER_SIZE: usize = 4 * mem::PAGE_SIZE;
-    let input_data_buffer: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "input data buffer",
-        VirtualAddress::from_raw_value(input_data_base),
-        INPUT_DATA_BUFFER_SIZE,
-        MemoryRegionType::Mmio,
-        AccessPermission::RDWR,
-    )?;
-    memory_regions.push_back(input_data_buffer);
+    // Register output stack buffer from PEB.
+    let output_stack_ptr: u64 = unsafe { (*peb_ptr).output_stack.ptr };
+    let output_stack_size: u64 = unsafe { (*peb_ptr).output_stack.size };
+    if output_stack_size > 0 {
+        let output_stack: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+            "output stack",
+            VirtualAddress::from_raw_value(output_stack_ptr as usize),
+            output_stack_size as usize,
+            MemoryRegionType::Mmio,
+            AccessPermission::RDWR,
+        )?;
+        memory_regions.push_back(output_stack);
+    }
 
-    // Register output data buffer.
-    let output_data_base: usize = input_data_base + INPUT_DATA_BUFFER_SIZE;
-    const OUTPUT_DATA_BUFFER_SIZE: usize = 4 * mem::PAGE_SIZE;
-    let output_data_buffer: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "output data buffer",
-        VirtualAddress::from_raw_value(output_data_base),
-        OUTPUT_DATA_BUFFER_SIZE,
-        MemoryRegionType::Mmio,
-        AccessPermission::RDWR,
-    )?;
-    memory_regions.push_back(output_data_buffer);
+    // Register guest heap from PEB.
+    let guest_heap_ptr: u64 = unsafe { (*peb_ptr).guest_heap.ptr };
+    let guest_heap_size: u64 = unsafe { (*peb_ptr).guest_heap.size };
+    if guest_heap_size > 0 {
+        let guest_heap: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+            "guest heap",
+            VirtualAddress::from_raw_value(guest_heap_ptr as usize),
+            guest_heap_size as usize,
+            MemoryRegionType::Mmio,
+            AccessPermission::RDWR,
+        )?;
+        memory_regions.push_back(guest_heap);
+    }
 
-    // Register reserved area for heap padding.
-    let heap_padding_base: usize = output_data_base + OUTPUT_DATA_BUFFER_SIZE;
-    debug!("heap_padding_base={:#010x}", heap_padding_base);
-    let heap_padding_size: usize = memory_layout::KPOOL_BASE.into_raw_value() - heap_padding_base;
-    let heap_padding: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "heap padding",
-        VirtualAddress::from_raw_value(heap_padding_base),
-        heap_padding_size,
-        MemoryRegionType::Reserved,
-        AccessPermission::RDONLY,
-    )?;
-    memory_regions.push_back(heap_padding);
+    // Register init_data from PEB (this is where initrd lives in guest-COW).
+    let init_data_ptr: u64 = unsafe { (*peb_ptr).init_data.ptr };
+    let init_data_size: u64 = unsafe { (*peb_ptr).init_data.size };
+    if init_data_size > 0 {
+        let init_data: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+            "init data",
+            VirtualAddress::from_raw_value(init_data_ptr as usize),
+            init_data_size as usize,
+            MemoryRegionType::Reserved,
+            AccessPermission::RDWR,
+        )?;
+        memory_regions.push_back(init_data);
+    }
 
-    // Register kpool guard page.
-    let kpool_guard_base: usize =
-        memory_layout::KPOOL_BASE.into_raw_value() + config::kernel::KPOOL_SIZE;
-    let kpool_guard_size: usize = mem::PAGE_SIZE;
-    let kpool_guard: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "kpool guard",
-        VirtualAddress::from_raw_value(kpool_guard_base),
-        kpool_guard_size,
-        MemoryRegionType::Reserved,
-        AccessPermission::RDONLY,
-    )?;
-    memory_regions.push_back(kpool_guard);
-
-    // Register hyperlight guest user stack.
-    let guest_user_stack_base: usize = kpool_guard_base + kpool_guard_size;
-    let guest_user_stack_size: usize = mem::PAGE_SIZE;
-    let guest_user_stack: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "guest user stack",
-        VirtualAddress::from_raw_value(guest_user_stack_base),
-        guest_user_stack_size,
-        MemoryRegionType::Reserved,
-        AccessPermission::RDONLY,
-    )?;
-    memory_regions.push_back(guest_user_stack);
+    // NOTE: extra_memory (kpool) is registered separately in kimage.rs
+    // NOTE: credits region is in scratch memory and accessed via pointer
 
     Ok(Platform {
         arch: x86::init(ioports, ioaddresses, madt)?,

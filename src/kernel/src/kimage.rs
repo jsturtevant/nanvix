@@ -7,7 +7,6 @@
 
 use crate::hal::mem::{
     AccessPermission,
-    Address,
     MemoryRegion,
     MemoryRegionType,
     VirtualAddress,
@@ -112,18 +111,34 @@ impl KernelImage {
             AccessPermission::RDWR,
         )?;
 
-        // Kernel page pool.
+        // Kernel page pool - read from PEB extra_memory region in scratch.
+        // Safety: PEB has been initialized by this point in the boot sequence.
+        let (kpool_base, kpool_size) = unsafe {
+            use ::hyperlight_common::mem::HyperlightPEB;
+            extern "C" {
+                static __KERNEL_END: u8;
+            }
+            let peb_base: usize = ::sys::mm::align_up(
+                &__KERNEL_END as *const u8 as usize,
+                ::arch::mem::PAGE_ALIGNMENT
+            );
+            let peb_ptr: *const HyperlightPEB = peb_base as *const HyperlightPEB;
+            let extra_mem_ptr: u64 = (*peb_ptr).extra_memory.ptr;
+            let extra_mem_size: u64 = (*peb_ptr).extra_memory.size;
+            (extra_mem_ptr as usize, extra_mem_size as usize)
+        };
+        
         info!(
-            "{:>6}: start={:#010x}, end={:#010x} size={:#010x}",
+            "{:>6}: start={:#010x}, end={:#010x} size={:#010x} (from PEB extra_memory)",
             "kpool",
-            ::sys::config::memory_layout::KPOOL_BASE.into_raw_value(),
-            ::sys::config::memory_layout::KPOOL_BASE.into_raw_value() + config::kernel::KPOOL_SIZE,
-            config::kernel::KPOOL_SIZE
+            kpool_base,
+            kpool_base + kpool_size,
+            kpool_size
         );
         let kpool = MemoryRegion::new(
             "kernel page pool",
-            ::sys::config::memory_layout::KPOOL_BASE,
-            config::kernel::KPOOL_SIZE,
+            VirtualAddress::from_raw_value(kpool_base),
+            kpool_size,
             MemoryRegionType::Reserved,
             AccessPermission::RDWR,
         )?;
