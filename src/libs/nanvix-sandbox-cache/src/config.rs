@@ -15,7 +15,7 @@ use ::nanvix_sandbox::{
     syscomm::SocketType,
     HwLoc,
 };
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 use ::std::marker::PhantomData;
 
 //==================================================================================================
@@ -51,13 +51,13 @@ pub struct SandboxCacheConfig<T> {
     /// Path to kernel binary.
     kernel_binary_path: String,
     /// Path to the Linux Daemon binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     linuxd_binary_path: String,
     /// Path to the User VM binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     uservm_binary_path: String,
     /// System call table.
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     syscall_table: Option<::std::sync::Arc<::nanvix_sandbox::SyscallTable<T>>>,
     /// Path to the toolchain binary directory containing cloud-hypervisor and other tools.
     toolchain_binary_directory: String,
@@ -71,7 +71,7 @@ pub struct SandboxCacheConfig<T> {
     tmp_directory: String,
     /// Phantom data to maintain the generic type parameter `T` in the structure.
     /// This is required because `T` is only used in single-process mode for the syscall table.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     _phantom: PhantomData<T>,
 }
 
@@ -114,9 +114,9 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
         kernel_binary_path: &str,
-        #[cfg(not(feature = "single-process"))] linuxd_binary_path: &str,
-        #[cfg(not(feature = "single-process"))] uservm_binary_path: &str,
-        #[cfg(feature = "single-process")] syscall_table: Option<
+        #[cfg(feature = "multi-process")] linuxd_binary_path: &str,
+        #[cfg(feature = "multi-process")] uservm_binary_path: &str,
+        #[cfg(not(feature = "multi-process"))] syscall_table: Option<
             ::std::sync::Arc<::nanvix_sandbox::SyscallTable<T>>,
         >,
         toolchain_binary_directory: &str,
@@ -132,18 +132,18 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
             console_file,
             hwloc,
             kernel_binary_path: kernel_binary_path.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             linuxd_binary_path: linuxd_binary_path.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             uservm_binary_path: uservm_binary_path.to_string(),
-            #[cfg(feature = "single-process")]
+            #[cfg(not(feature = "multi-process"))]
             syscall_table,
             toolchain_binary_directory: toolchain_binary_directory.to_string(),
             log_directory: log_directory.to_string(),
             l2,
             l2_snapshot_path: l2_snapshot_path.to_string(),
             tmp_directory: tmp_directory.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             _phantom: PhantomData,
         }
     }
@@ -235,7 +235,7 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
     ///
     /// The path to the Linux Daemon binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn linuxd_binary_path(&self) -> &str {
         &self.linuxd_binary_path
     }
@@ -249,7 +249,7 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
     ///
     /// The path to the User VM binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn uservm_binary_path(&self) -> &str {
         &self.uservm_binary_path
     }
@@ -264,7 +264,7 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
     /// If a system call table is set, this function returns a handle to it. Otherwise, it returns
     /// empty.
     ///
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     pub fn syscall_table(&self) -> Option<::std::sync::Arc<::nanvix_sandbox::SyscallTable<T>>> {
         self.syscall_table.clone()
     }

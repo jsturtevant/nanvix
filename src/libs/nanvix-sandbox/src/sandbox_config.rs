@@ -12,7 +12,7 @@
 //==================================================================================================
 
 use crate::tcp_port::TcpPort;
-#[cfg(not(feature = "single-process"))]
+#[cfg(feature = "multi-process")]
 use ::std::marker::PhantomData;
 use ::syscomm::SocketType;
 use ::user_vm_api::UserVmIdentifier;
@@ -49,15 +49,15 @@ pub struct SandboxConfig<T> {
     /// Path to kernel binary.
     kernel_binary_path: String,
     /// Path to the Linux Daemon binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     linuxd_binary_path: String,
     /// Path to the User VM binary.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     uservm_binary_path: String,
     /// Directory path for writing log files.
     log_directory: String,
     /// Optional system call table for overriding default system call behavior.
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     syscall_table: Option<::std::sync::Arc<::linuxd::syscalls::SyscallTable<T>>>,
 
     /// Optional information on control plane socket (address, socket type).
@@ -82,7 +82,7 @@ pub struct SandboxConfig<T> {
 
     /// Phantom data to maintain the generic type parameter `T` in the structure.
     /// This is required because `T` is only used in single-process mode for the syscall table.
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     _phantom: PhantomData<T>,
 }
 
@@ -126,10 +126,10 @@ impl<T> SandboxConfig<T> {
         console_file: Option<String>,
         hwloc: Option<hwloc::HwLoc>,
         kernel_binary_path: &str,
-        #[cfg(not(feature = "single-process"))] linuxd_binary_path: &str,
-        #[cfg(not(feature = "single-process"))] uservm_binary_path: &str,
+        #[cfg(feature = "multi-process")] linuxd_binary_path: &str,
+        #[cfg(feature = "multi-process")] uservm_binary_path: &str,
         log_directory: &str,
-        #[cfg(feature = "single-process")] syscall_table: Option<
+        #[cfg(not(feature = "multi-process"))] syscall_table: Option<
             ::std::sync::Arc<::linuxd::syscalls::SyscallTable<T>>,
         >,
         control_plane_socket_info: Option<(String, SocketType)>,
@@ -145,19 +145,19 @@ impl<T> SandboxConfig<T> {
             console_file,
             hwloc,
             kernel_binary_path: kernel_binary_path.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             linuxd_binary_path: linuxd_binary_path.to_string(),
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             uservm_binary_path: uservm_binary_path.to_string(),
             log_directory: log_directory.to_string(),
-            #[cfg(feature = "single-process")]
+            #[cfg(not(feature = "multi-process"))]
             syscall_table,
             control_plane_socket_info,
             toolchain_binary_directory,
             tmp_directory,
             l2,
             l2_snapshot_path,
-            #[cfg(not(feature = "single-process"))]
+            #[cfg(feature = "multi-process")]
             _phantom: PhantomData,
         }
     }
@@ -249,7 +249,7 @@ impl<T> SandboxConfig<T> {
     ///
     /// The path to the Linux Daemon binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn linuxd_binary_path(&self) -> &str {
         &self.linuxd_binary_path
     }
@@ -263,7 +263,7 @@ impl<T> SandboxConfig<T> {
     ///
     /// The path to the User VM binary.
     ///
-    #[cfg(not(feature = "single-process"))]
+    #[cfg(feature = "multi-process")]
     pub fn uservm_binary_path(&self) -> &str {
         &self.uservm_binary_path
     }
@@ -290,7 +290,7 @@ impl<T> SandboxConfig<T> {
     ///
     /// An optional clone of the system call table.
     ///
-    #[cfg(feature = "single-process")]
+    #[cfg(not(feature = "multi-process"))]
     pub fn syscall_table(&self) -> Option<::std::sync::Arc<::linuxd::syscalls::SyscallTable<T>>> {
         self.syscall_table.clone()
     }
