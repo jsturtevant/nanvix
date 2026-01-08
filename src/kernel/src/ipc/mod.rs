@@ -6,6 +6,8 @@
 //==================================================================================================
 
 mod mbx;
+mod pull;
+mod push;
 mod recv;
 mod send;
 
@@ -14,5 +16,7 @@ mod send;
 //==================================================================================================
 
 pub use mbx::Mailbox;
+pub use pull::pull;
+pub use push::push;
 pub use recv::recv;
 pub use send::send;
