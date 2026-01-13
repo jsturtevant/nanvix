@@ -30,5 +30,5 @@ pub(crate) use scoreboard::ScoreBoard;
 
 pub fn init() {
     info!("initializing kernel call handler...");
-    ScoreBoard::init();
+    unsafe { ScoreBoard::init() };
 }
