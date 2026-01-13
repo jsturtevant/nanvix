@@ -220,7 +220,9 @@ endif
 
 # Tools
 export CARGO := $(HOME)/.cargo/bin/cargo
-export RUSTC := $(HOME)/.cargo/bin/rustc
+export NANVIX_TOOLCHAIN ?= nanvix-x86
+export KERNEL_CARGO_TOOLCHAIN := $(NANVIX_TOOLCHAIN)
+export RUSTC := $(HOME)/.rustup/toolchains/$(NANVIX_TOOLCHAIN)/bin/rustc
 
 # SCCACHE integration for Rust compilation (optional)
 ifneq ($(SCCACHE),)
@@ -256,32 +258,32 @@ endif
 #===================================================================================================
 
 # Cargo commands for guest target.
-export GUEST_CARGO_BUILD_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 build $(GUEST_CARGO_FLAGS)  $(GUEST_CARGO_TARGET) $(CARGO_PROFILE)
-export GUEST_CARGO_CLEAN_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 clean $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET)
-export GUEST_CARGO_CHECK_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 check $(GUEST_CARGO_FLAGS)  $(GUEST_CARGO_TARGET) --message-format=json
-export GUEST_CARGO_CLIPPY_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 clippy $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET)
-export GUEST_CARGO_FMT_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +nanvix-x86 fmt
+export GUEST_CARGO_BUILD_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) build $(GUEST_CARGO_FLAGS)  $(GUEST_CARGO_TARGET) $(CARGO_PROFILE)
+export GUEST_CARGO_CLEAN_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) clean $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET)
+export GUEST_CARGO_CHECK_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) check $(GUEST_CARGO_FLAGS)  $(GUEST_CARGO_TARGET) --message-format=json
+export GUEST_CARGO_CLIPPY_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) clippy $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET)
+export GUEST_CARGO_FMT_CMD := RUSTFLAGS=$(GUEST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) fmt
 
-export KERNEL_CARGO_BUILD_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 build $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) $(CARGO_PROFILE) --no-default-features
-export KERNEL_CARGO_CLEAN_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 clean $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET)
-export KERNEL_CARGO_CHECK_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 check $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) --message-format=json --no-default-features
-export KERNEL_CARGO_CLIPPY_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 clippy $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) --no-default-features
-export KERNEL_CARGO_FMT_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +nanvix-x86 fmt
+export KERNEL_CARGO_BUILD_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +$(KERNEL_CARGO_TOOLCHAIN) build $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) $(CARGO_PROFILE) --no-default-features
+export KERNEL_CARGO_CLEAN_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +$(KERNEL_CARGO_TOOLCHAIN) clean $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET)
+export KERNEL_CARGO_CHECK_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +$(KERNEL_CARGO_TOOLCHAIN) check $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) --message-format=json --no-default-features
+export KERNEL_CARGO_CLIPPY_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +$(KERNEL_CARGO_TOOLCHAIN) clippy $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) --no-default-features
+export KERNEL_CARGO_FMT_CMD := RUSTFLAGS=$(KERNEL_RUST_FLAGS) $(CARGO) +$(KERNEL_CARGO_TOOLCHAIN) fmt
 
 # Cargo commands for wasm target.
-export WASM_CARGO_BUILD_CMD := $(CARGO) +nanvix-x86 build $(WASM_CARGO_PROFILE) --target wasm32-wasip1 --no-default-features
-export WASM_CARGO_CLEAN_CMD := $(CARGO) +nanvix-x86 clean --target wasm32-wasip1
-export WASM_CARGO_CHECK_CMD := $(CARGO) +nanvix-x86 check --target wasm32-wasip1 --message-format=json --no-default-features
-export WASM_CARGO_CLIPPY_CMD := $(CARGO) +nanvix-x86 clippy --target wasm32-wasip1 --no-default-features
-export WASM_CARGO_FMT_CMD := $(CARGO) +nanvix-x86 fmt
+export WASM_CARGO_BUILD_CMD := $(CARGO) +$(NANVIX_TOOLCHAIN) build $(WASM_CARGO_PROFILE) --target wasm32-wasip1 --no-default-features
+export WASM_CARGO_CLEAN_CMD := $(CARGO) +$(NANVIX_TOOLCHAIN) clean --target wasm32-wasip1
+export WASM_CARGO_CHECK_CMD := $(CARGO) +$(NANVIX_TOOLCHAIN) check --target wasm32-wasip1 --message-format=json --no-default-features
+export WASM_CARGO_CLIPPY_CMD := $(CARGO) +$(NANVIX_TOOLCHAIN) clippy --target wasm32-wasip1 --no-default-features
+export WASM_CARGO_FMT_CMD := $(CARGO) +$(NANVIX_TOOLCHAIN) fmt
 
 # Cargo commands for host target.
-export HOST_CARGO_BUILD_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +nanvix-x86 build $(CARGO_PROFILE) --no-default-features
-export HOST_CARGO_CLEAN_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +nanvix-x86 clean
-export HOST_CARGO_CHECK_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +nanvix-x86 check --message-format=json --no-default-features
-export HOST_CARGO_CLIPPY_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +nanvix-x86 clippy --no-default-features
-export HOST_CARGO_TEST_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +nanvix-x86 test --no-default-features
-export HOST_CARGO_FMT_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +nanvix-x86 fmt
+export HOST_CARGO_BUILD_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) build $(CARGO_PROFILE) --no-default-features
+export HOST_CARGO_CLEAN_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) clean
+export HOST_CARGO_CHECK_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) check --message-format=json --no-default-features
+export HOST_CARGO_CLIPPY_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) clippy --no-default-features
+export HOST_CARGO_TEST_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) test --no-default-features
+export HOST_CARGO_FMT_CMD := RUSTFLAGS=$(HOST_RUST_FLAGS) $(CARGO) +$(NANVIX_TOOLCHAIN) fmt
 
 # Utility Commands
 export RM_CMD := rm -f
