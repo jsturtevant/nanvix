@@ -254,6 +254,29 @@ export WASM_BUILD_MODE := dev-wasm
 endif
 
 #===================================================================================================
+# Verus Formal Verification
+#===================================================================================================
+
+export VERUS_HOME ?= $(HOME)/verus
+
+# Crate lists used for Verus verification. Override these when invoking `make` to
+# focus on specific groups (e.g., `make VERUS_GUEST_RLIBS="proc" verify`). By
+# default they mirror the standard ALL_* collections so Verus runs everywhere.
+VERUS_GUEST_STATICLIBS ?= $(ALL_GUEST_STATIC_LIBS)
+VERUS_GUEST_RLIBS ?= $(ALL_GUEST_RUST_LIBS)
+VERUS_GUEST_BINARIES ?= $(ALL_GUEST_BINARIES)
+VERUS_KERNEL_PACKAGES ?= kernel
+VERUS_HOST_RLIBS ?= $(ALL_HOST_RUST_LIBS)
+VERUS_HOST_BINARIES ?= $(ALL_HOST_BINARIES)
+VERUS_ALL_PACKAGES = $(strip \
+	$(VERUS_GUEST_STATICLIBS) \
+	$(VERUS_GUEST_RLIBS) \
+	$(VERUS_GUEST_BINARIES) \
+	$(VERUS_KERNEL_PACKAGES) \
+	$(VERUS_HOST_RLIBS) \
+	$(VERUS_HOST_BINARIES))
+
+#===================================================================================================
 # Commands
 #===================================================================================================
 
@@ -452,6 +475,7 @@ help:
 	@echo "  check           Run all validation checks (syntax, compilation)"
 	@echo "  format          Fix code formatting issues automatically"
 	@echo "  format-check    Check code formatting without fixing"
+	@echo "  verify          Run Verus verification for opted-in Rust packages"
 	@echo "  install         Install build artifacts in the sysroot directory"
 	@echo "  release         Create release archive from the sysroot directory"
 	@echo "  lint            Fix code linting issues automatically"
@@ -573,6 +597,95 @@ rust-format-check: \
 ifneq ($(strip $(filter $(MACHINE),microvm hyperlight)),)
 rust-format-check: format-check-host-binaries format-check-host-rlibs format-check-nanvixd format-check-uservm format-check-nanvix-bench format-check-nanvix-test
 endif
+
+.PHONY: verify
+verify:
+	@VERUS_BIN=""; \
+	for candidate in "$(VERUS_HOME)/bin/cargo-verus" "$(VERUS_HOME)/cargo-verus" "$(VERUS_HOME)/source/tools/verus/cargo-verus"; do \
+		if [ -z "$$VERUS_BIN" ] && [ -x "$$candidate" ]; then \
+			VERUS_BIN="$$candidate"; \
+		fi; \
+	done; \
+	if [ -z "$$VERUS_BIN" ] && command -v cargo-verus >/dev/null 2>&1; then \
+		VERUS_BIN=$$(command -v cargo-verus); \
+	fi; \
+	if [ -z "$$VERUS_BIN" ]; then \
+		echo "Warning: Verus (cargo-verus) not found; skipping verification. Set VERUS_HOME=/path/to/verus to override."; \
+	elif [ -z "$(strip $(VERUS_ALL_PACKAGES))" ]; then \
+		echo "Warning: no crates are configured for Verus (VERUS_* lists are empty); skipping verification."; \
+	else \
+		VERUS_BINDIR=$$(dirname "$$VERUS_BIN"); \
+		echo "Running Verus with $$VERUS_BIN"; \
+		( \
+			set -e; \
+			export PATH="$$VERUS_BINDIR:$$PATH"; \
+			export VERUS_HOME="$(VERUS_HOME)"; \
+			export RUSTC_BOOTSTRAP=1; \
+			export RUSTUP_TOOLCHAIN="$(NANVIX_TOOLCHAIN)"; \
+			VERUS_PERFORMED=0; \
+			if [ -n "$(strip $(VERUS_GUEST_STATICLIBS))" ]; then \
+				for package in $(VERUS_GUEST_STATICLIBS); do \
+					VERUS_PERFORMED=1; \
+					echo "Verifying $$package (guest static library)"; \
+					RUSTFLAGS="$(GUEST_RUST_FLAGS)" $(CARGO) +$(NANVIX_TOOLCHAIN) verus verify $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET) $(CARGO_PROFILE) $(GUEST_STATICLIB_CARGO_FEATURES) --package $$package; \
+				done; \
+			fi; \
+			if [ -n "$(strip $(VERUS_GUEST_RLIBS))" ]; then \
+				for package in $(VERUS_GUEST_RLIBS); do \
+					VERUS_PERFORMED=1; \
+					echo "Verifying $$package (guest library)"; \
+					RUSTFLAGS="$(GUEST_RUST_FLAGS)" $(CARGO) +$(NANVIX_TOOLCHAIN) verus verify $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET) $(CARGO_PROFILE) --package $$package; \
+				done; \
+			fi; \
+			if [ -n "$(strip $(VERUS_GUEST_BINARIES))" ]; then \
+				for package in $(VERUS_GUEST_BINARIES); do \
+					VERUS_PERFORMED=1; \
+					echo "Verifying $$package (guest binary)"; \
+					RUSTFLAGS="$(GUEST_RUST_FLAGS)" $(CARGO) +$(NANVIX_TOOLCHAIN) verus verify $(GUEST_CARGO_FLAGS) $(GUEST_CARGO_TARGET) $(CARGO_PROFILE) $(GUEST_BINARY_CARGO_FEATURES) --package $$package; \
+				done; \
+			fi; \
+			if [ -n "$(strip $(VERUS_KERNEL_PACKAGES))" ]; then \
+				for package in $(VERUS_KERNEL_PACKAGES); do \
+					VERUS_PERFORMED=1; \
+					echo "Verifying $$package (kernel target)"; \
+					RUSTFLAGS="$(KERNEL_RUST_FLAGS)" $(CARGO) +$(KERNEL_CARGO_TOOLCHAIN) verus verify $(KERNEL_CARGO_FLAGS) $(KERNEL_CARGO_TARGET) $(CARGO_PROFILE) --no-default-features $(KERNEL_CARGO_FEATURES) --package $$package; \
+				done; \
+			fi; \
+			if [ -n "$(strip $(VERUS_HOST_RLIBS))" ]; then \
+				if [ -n "$(strip $(filter $(MACHINE),microvm hyperlight))" ]; then \
+					for package in $(VERUS_HOST_RLIBS); do \
+						VERUS_PERFORMED=1; \
+						FEATURE_ARGS=""; \
+						case " $(USERVM_DEPENDENT_RLIBS) " in \
+						*" $$package "*) \
+							if [ -n "$(strip $(MACHINE_FEATURES))" ]; then \
+								FEATURE_ARGS="--features=$(strip $(MACHINE_FEATURES))"; \
+							fi; \
+							;; \
+						esac; \
+						echo "Verifying $$package (host library)"; \
+						RUSTFLAGS="$(HOST_RUST_FLAGS)" $(CARGO) +$(NANVIX_TOOLCHAIN) verus verify $(CARGO_PROFILE) --no-default-features $$FEATURE_ARGS --package $$package; \
+					done; \
+				else \
+					echo "Skipping host-target Verus verification because MACHINE=$(MACHINE) does not support host binaries."; \
+				fi; \
+			fi; \
+			if [ -n "$(strip $(VERUS_HOST_BINARIES))" ]; then \
+				if [ -n "$(strip $(filter $(MACHINE),microvm hyperlight))" ]; then \
+					for package in $(VERUS_HOST_BINARIES); do \
+						VERUS_PERFORMED=1; \
+						echo "Verifying $$package (host binary)"; \
+						RUSTFLAGS="$(HOST_RUST_FLAGS)" $(CARGO) +$(NANVIX_TOOLCHAIN) verus verify $(CARGO_PROFILE) --no-default-features $(HOST_CARGO_FEATURES) --package $$package; \
+					done; \
+				else \
+					echo "Skipping host-target Verus verification because MACHINE=$(MACHINE) does not support host binaries."; \
+				fi; \
+			fi; \
+			if [ $$VERUS_PERFORMED -eq 0 ]; then \
+				echo "Warning: Verus crate lists were provided, but no commands were executed. Check VERUS_* overrides and MACHINE=$(MACHINE)."; \
+			fi; \
+		); \
+	fi
 
 # Python lint variables
 PY_VERBOSE :=
