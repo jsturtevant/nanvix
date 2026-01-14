@@ -18,6 +18,9 @@ extern crate compiler_builtins;
 #[allow(unused_extern_crates)]
 extern crate core;
 
+#[cfg(verus)]
+mod verus;
+
 //==================================================================================================
 // Macros
 //==================================================================================================
@@ -31,10 +34,19 @@ extern crate core;
 ///
 /// - `$condition:expr`: Condition to be checked.
 ///
+#[cfg(not(verus))]
 #[macro_export]
 macro_rules! assert_eq {
     ($condition:expr) => {
         const _: () = [(); 1][($condition) as usize ^ 1];
+    };
+}
+
+#[cfg(verus)]
+#[macro_export]
+macro_rules! assert_eq {
+    ($condition:expr) => {
+        let _ = $condition;
     };
 }
 
@@ -48,6 +60,7 @@ macro_rules! assert_eq {
 /// - `$typ:ty`: Type to be checked.
 /// - `$expected_size:expr`: Expected size of the type.
 ///
+#[cfg(not(verus))]
 #[macro_export]
 macro_rules! assert_eq_size {
     ($typ:ty, $expected_size:expr) => {
@@ -55,6 +68,19 @@ macro_rules! assert_eq_size {
     };
     ($typ:ty, $expected_size:expr) => {
         const _: () = [(); 1][(::core::mem::size_of::<$typ>() == $expected_size) as usize ^ 1];
+    };
+}
+
+#[cfg(verus)]
+#[macro_export]
+macro_rules! assert_eq_size {
+    ($typ:ty, $expected_size:expr) => {
+        let _ = core::mem::size_of::<$typ>();
+        let _ = $expected_size;
+    };
+    ($typ:ty, $expected_size:expr) => {
+        let _ = core::mem::size_of::<$typ>();
+        let _ = $expected_size;
     };
 }
 
@@ -68,9 +94,19 @@ macro_rules! assert_eq_size {
 /// - `$typ:ty`: Type to be checked.
 /// - `$alignment:expr`: Expected alignment of the type.
 ///
+#[cfg(not(verus))]
 #[macro_export]
 macro_rules! assert_eq_align {
     ($typ:ty, $alignment:expr) => {
         const _: () = [(); 1][(::core::mem::align_of::<$typ>() == $alignment) as usize ^ 1];
+    };
+}
+
+#[cfg(verus)]
+#[macro_export]
+macro_rules! assert_eq_align {
+    ($typ:ty, $alignment:expr) => {
+        let _ = core::mem::align_of::<$typ>();
+        let _ = $alignment;
     };
 }

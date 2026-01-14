@@ -32,6 +32,12 @@ extern crate compiler_builtins;
 #[allow(unused_extern_crates)]
 extern crate core;
 
+#[cfg(verus)]
+mod verus;
+
+#[cfg(verus)]
+use vstd::prelude::*;
+
 //==================================================================================================
 // Modules
 //==================================================================================================

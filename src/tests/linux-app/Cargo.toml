@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Linux App Benchmark"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [[bin]]
 name = "linux-app"
 

@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Process Management Daemon"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [lib]
 crate-type = ["lib"]
 

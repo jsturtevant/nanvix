@@ -10,6 +10,8 @@ authors.workspace = true
 description = "System Application Programming Interface"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [dependencies]
 compiler_builtins = { workspace = true, optional = true }
 config = { workspace = true }

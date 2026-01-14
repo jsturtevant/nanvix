@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Tests for Architecture-Specific Features"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [[bin]]
 name = "arch-rust"
 

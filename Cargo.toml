@@ -148,6 +148,7 @@ uuid = { version = "1.18.1", default-features = false }
 user-vm-api = { path = "src/libs/user-vm-api", default-features = false }
 vmm-sys-util = { version = "0.15.0", default-features = false }
 wasmi = { version = "1.0.0", default-features = false }
+vstd = { version = "0.0.0-2026-01-11-0057", default-features = false }
 
 [profile.dev]
 opt-level = 0
@@ -185,6 +186,7 @@ lto = true
 
 [workspace.lints.rust]
 warnings = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(verus)'] }
 
 [workspace.lints.clippy]
 all = "deny"

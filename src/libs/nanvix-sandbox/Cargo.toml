@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Sandbox management for Nanvix"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [dependencies]
 anyhow = { workspace = true }
 cfg-if = { workspace = true }

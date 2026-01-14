@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Hardware Locality Library"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [dependencies]
 anyhow = { workspace = true }
 libc = { workspace = true }

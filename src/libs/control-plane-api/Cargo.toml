@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Control-Plane API Library"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [dependencies]
 config = { workspace = true }
 num_enum = { workspace = true }

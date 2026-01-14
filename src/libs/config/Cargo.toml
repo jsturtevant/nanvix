@@ -10,6 +10,8 @@ edition.workspace = true
 description = "Configuration and constants for Nanvix"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [lib]
 crate-type = ["lib"]
 

@@ -10,6 +10,8 @@ authors.workspace = true
 description = "System Library"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [dependencies]
 config = { workspace = true }
 error = { workspace = true }

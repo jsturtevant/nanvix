@@ -10,6 +10,8 @@ authors.workspace = true
 description = "HTTP Interface for Nanvix"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [dependencies]
 anyhow = { workspace = true }
 config = { workspace = true }

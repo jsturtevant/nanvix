@@ -10,5 +10,7 @@ authors.workspace = true
 description = "Hello World in WebAssembly"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [lints]
 workspace = true

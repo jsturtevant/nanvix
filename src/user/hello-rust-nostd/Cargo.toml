@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Hello World in Rust"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [[bin]]
 name = "hello-rust-nostd"
 

@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Linux Provider Daemon"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [lib]
 name = "linuxd"
 path = "src/lib.rs"

@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Echo Benchmark for Rust"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [[bin]]
 name = "echo-rust-nostd"
 

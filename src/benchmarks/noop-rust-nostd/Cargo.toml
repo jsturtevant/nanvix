@@ -10,6 +10,8 @@ authors.workspace = true
 description = "Boot Time Benchmark"
 homepage.workspace = true
 
+[package.metadata.verus]
+verify = true
 [[bin]]
 name = "noop-rust-nostd"
 
