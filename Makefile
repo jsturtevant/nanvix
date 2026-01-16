@@ -11,7 +11,7 @@
 export TARGET ?= x86
 
 # Target Machine
-export MACHINE ?= microvm
+export MACHINE ?= hyperlight
 
 # Release Version?
 export RELEASE ?= no
