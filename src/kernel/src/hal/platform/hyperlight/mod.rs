@@ -48,7 +48,10 @@ use ::arch::{
     mem,
     mem::PAGE_ALIGNMENT,
 };
-use ::hyperlight_common::mem::HyperlightPEB;
+use ::hyperlight_common::mem::{
+    GuestMemoryRegion,
+    HyperlightPEB,
+};
 use ::sys::{
     config::memory_layout,
     error::{
@@ -257,10 +260,32 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
         (initrd_base, actual_initrd_size, initrd_cmdline)
     };
 
+    // Print information on guest filesystem region.
+    let (guest_fs_region_base, guest_fs_region_size): (u64, u64) = unsafe {
+        let region: GuestMemoryRegion = (*peb_ptr).guest_fs_region;
+        (region.ptr, region.size)
+    };
+
+    info!(
+        "guest_fs_region_base={:#010x}, guest_fs_region_size={:#010x}",
+        guest_fs_region_base, guest_fs_region_size
+    );
+
+    // Create a memory region for the guest filesystem.
+    let guest_fs_region: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+        "guest filesystem",
+        VirtualAddress::from_raw_value(guest_fs_region_base as usize),
+        guest_fs_region_size as usize,
+        MemoryRegionType::Mmio,
+        AccessPermission::RDONLY,
+    )?;
+
+    let mut memory_regions: LinkedList<MemoryRegion<VirtualAddress>> = LinkedList::new();
+    memory_regions.push_back(guest_fs_region);
+
     let mut kernel_modules: LinkedList<KernelModule> = LinkedList::new();
 
     // Register initrd as a kernel module.
-
     info!(
         "initrd_base={:#010x}, initrd_size={:#010x}, cmdline_len={:?}, cmdline={:?}",
         initrd_base,
@@ -274,7 +299,7 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
         KernelModule::new(PhysicalAddress::from_raw_value(initrd_base)?, initrd_size, cmdline);
     kernel_modules.push_back(module);
 
-    Ok(BootInfo::new(None, None, LinkedList::new(), LinkedList::new(), kernel_modules))
+    Ok(BootInfo::new(None, None, memory_regions, LinkedList::new(), kernel_modules))
 }
 
 #[cfg(feature = "pic")]
