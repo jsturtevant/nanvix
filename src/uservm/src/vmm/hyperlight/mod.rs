@@ -237,7 +237,7 @@ impl Vmm {
         // Create Hyperlight filesystem.
         let fs_image: Arc<HyperlightFSImage> = Arc::new(
             HyperlightFSBuilder::new()
-                .add_file("README.md", "/")?
+                .add_file("/home/ppenna/src/nanvix/nanvix-vfs/README.md", "/README.md")?
                 .build()?,
         );
 
