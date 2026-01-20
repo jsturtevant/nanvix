@@ -41,6 +41,8 @@ pub struct Args {
     initrd_filename: Option<String>,
     /// Arguments to be passed to the initrd.
     initrd_args: Option<String>,
+    /// Optional ramfs image filename to expose to the guest.
+    ramfs_filename: Option<String>,
     /// Memory size.
     memory_size: usize,
     /// Standard error.
@@ -78,6 +80,8 @@ impl Args {
     pub const OPT_KERNEL: &'static str = "-kernel";
     /// Command-line option for the memory size.
     pub const OPT_MEMORY_SIZE: &'static str = "-memory";
+    /// Command-line option for the ramfs file.
+    pub const OPT_RAMFS: &'static str = "-ramfs";
     /// Command-line option for the standard error.
     pub const OPT_STDERR: &'static str = "-stderr";
     /// Command-line option for system VM address.
@@ -123,6 +127,7 @@ impl Args {
         let mut kernel_filename: String = String::new();
         let mut initrd_filename: Option<String> = None;
         let mut initrd_args: Option<String> = None;
+        let mut ramfs_filename: Option<String> = None;
         let mut memory_size: usize = ::config::kernel::MEMORY_SIZE;
         let mut vm_stderr: Option<String> = None;
         let mut system_vm_addr: String = String::new();
@@ -159,6 +164,11 @@ impl Args {
                 // Set initrd file.
                 Self::OPT_INITRD if i + 1 < args.len() => {
                     initrd_filename = Some(args[i + 1].clone());
+                    i += 1;
+                },
+                // Set ramfs file.
+                Self::OPT_RAMFS if i + 1 < args.len() => {
+                    ramfs_filename = Some(args[i + 1].clone());
                     i += 1;
                 },
                 // Set initrd arguments.
@@ -381,6 +391,7 @@ impl Args {
             kernel_filename,
             initrd_filename,
             initrd_args,
+            ramfs_filename,
             memory_size,
             vm_stderr,
             system_vm_addr,
@@ -401,7 +412,7 @@ impl Args {
     ///
     pub fn usage() {
         eprintln!(
-            "Usage: {} {} <id> {} <kernel> [{} <size>] [{} <file>] [{} <file>]  [{} \
+            "Usage: {} {} <id> {} <kernel> [{} <size>] [{} <file>] [{} <file>] [{} <file>] [{} \
              <system-vm-addr> {} <control-plane-addr> {} <gateway-addr>] [{} [{} <dir>]] [{} \
              <args>]",
             Self::PROGRAM_NAME,
@@ -409,6 +420,7 @@ impl Args {
             Self::OPT_KERNEL,
             Self::OPT_MEMORY_SIZE,
             Self::OPT_INITRD,
+            Self::OPT_RAMFS,
             Self::OPT_STDERR,
             Self::OPT_SYSTEM_VM_SOCKADDR,
             Self::OPT_CONTROL_PLANE_SOCKADDR,
@@ -458,6 +470,20 @@ impl Args {
     ///
     pub fn initrd_args(&mut self) -> Option<String> {
         self.initrd_args.take()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the ramfs filename that was passed as a command-line argument to the program.
+    ///
+    /// # Returns
+    ///
+    /// The ramfs filename that was passed as a command-line argument to the program. If no ramfs
+    /// filename was passed, this method returns `None`.
+    ///
+    pub fn ramfs_filename(&mut self) -> Option<String> {
+        self.ramfs_filename.take()
     }
 
     ///

@@ -120,7 +120,10 @@ impl UserVm {
             ::uservm::args::Args::OPT_CONTROL_PLANE_SOCKADDR.to_string(),
             args.control_plane_connect_socket_info().0.to_string(),
             ::uservm::args::Args::OPT_CONTROL_PLANE_SOCKET_TYPE.to_string(),
-            args.control_plane_connect_socket_info().1.to_str().to_string(),
+            args.control_plane_connect_socket_info()
+                .1
+                .to_str()
+                .to_string(),
             ::uservm::args::Args::OPT_GATEWAY_SOCKADDR.to_string(),
             args.gateway_socket_info().0.to_string(),
             ::uservm::args::Args::OPT_GATEWAY_SOCKET_TYPE.to_string(),
@@ -132,6 +135,11 @@ impl UserVm {
         if let Some(program_args) = args.program_args() {
             user_vm_args.push(::uservm::args::Args::OPT_INITRD_ARGS.to_string());
             user_vm_args.push(program_args.to_string());
+        }
+
+        if let Some(ramfs_file) = args.ramfs_filename() {
+            user_vm_args.push(::uservm::args::Args::OPT_RAMFS.to_string());
+            user_vm_args.push(ramfs_file.to_string());
         }
 
         if let Some(stderr_file) = args.console_file() {

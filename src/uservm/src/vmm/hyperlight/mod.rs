@@ -108,6 +108,8 @@ impl Vmm {
     pub fn new(args: MicroVmArgs) -> Result<Self> {
         let guest: Guest = Guest::default();
 
+        let ramfs_filename: Option<String> = args.ramfs_filename.clone();
+
         // Required values for heap and stack sizes to be used by the kernel.
         let heap_size: usize = 4 * 1024 * 1024;
         let stack_size: usize = 4 * 1024;
@@ -235,11 +237,30 @@ impl Vmm {
         config.set_stack_size(stack_size_u64);
 
         // Create Hyperlight filesystem.
-        let fs_image: Arc<HyperlightFSImage> = Arc::new(
-            HyperlightFSBuilder::new()
-                .add_file("/home/ppenna/src/nanvix/nanvix-vfs/README.md", "/README.md")?
-                .build()?,
-        );
+        let mut fs_builder: HyperlightFSBuilder = HyperlightFSBuilder::new();
+
+        if let Some(ramfs_path) = ramfs_filename.as_ref() {
+            let host_path: &Path = Path::new(ramfs_path);
+            if !host_path.is_file() {
+                let reason: String = format!("ramfs file not found (path={ramfs_path})");
+                error!("hyperlight::new(): {reason}");
+                return Err(anyhow::anyhow!(reason));
+            }
+
+            let guest_basename: String = host_path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "ramfs".to_string());
+            let guest_path: String = format!("/{guest_basename}");
+
+            fs_builder = fs_builder.add_file(ramfs_path, &guest_path)?;
+            debug!(
+                "hyperlight::new(): attached ramfs (host_path={ramfs_path}, \
+                 guest_path={guest_path})"
+            );
+        }
+
+        let fs_image: Arc<HyperlightFSImage> = Arc::new(fs_builder.build()?);
 
         // Creates Hyperlight sandbox.
         let mut sandbox: UninitializedSandbox = UninitializedSandbox::new(guest_env, Some(config))?;

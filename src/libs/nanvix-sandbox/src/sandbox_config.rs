@@ -44,6 +44,8 @@ pub struct SandboxConfig<T> {
     system_vm_socket_info: (String, SocketType),
     /// Optional file path for redirecting console output.
     console_file: Option<String>,
+    /// Optional ramfs image to attach to the guest filesystem.
+    ramfs_filename: Option<String>,
     /// Optional hardware locality configuration for CPU affinity and topology information.
     hwloc: Option<hwloc::HwLoc>,
     /// Path to kernel binary.
@@ -107,6 +109,7 @@ impl<T> SandboxConfig<T> {
     /// - `gateway_socket_info`: Information on gateway socket (address, socket type, optional L2 TCP port).
     /// - `system_vm_socket_info`: Information on System VM socket (address, socket type).
     /// - `console_file`: Optional file path for redirecting console output.
+    /// - `ramfs_filename`: Optional ramfs image to attach to the guest filesystem.
     /// - `hwloc`: Optional hardware locality configuration.
     /// - `kernel_binary_path`: Path to kernel binary.
     /// - `linuxd_binary_path`: Path to the Linux Daemon binary (only if not in single-process mode).
@@ -130,6 +133,7 @@ impl<T> SandboxConfig<T> {
         gateway_socket_info: (String, SocketType, Option<TcpPort>),
         system_vm_socket_info: (String, SocketType),
         console_file: Option<String>,
+        ramfs_filename: Option<String>,
         hwloc: Option<hwloc::HwLoc>,
         kernel_binary_path: &str,
         #[cfg(not(feature = "single-process"))] linuxd_binary_path: &str,
@@ -150,6 +154,7 @@ impl<T> SandboxConfig<T> {
             gateway_socket_info,
             system_vm_socket_info,
             console_file,
+            ramfs_filename,
             hwloc,
             kernel_binary_path: kernel_binary_path.to_string(),
             #[cfg(not(feature = "single-process"))]
@@ -220,6 +225,19 @@ impl<T> SandboxConfig<T> {
     ///
     pub fn console_file(&self) -> Option<&str> {
         self.console_file.as_deref()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the optional ramfs image path.
+    ///
+    /// # Returns
+    ///
+    /// The ramfs image path when provided.
+    ///
+    pub fn ramfs_filename(&self) -> Option<&str> {
+        self.ramfs_filename.as_deref()
     }
 
     ///

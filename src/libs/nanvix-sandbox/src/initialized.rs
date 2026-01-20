@@ -107,6 +107,8 @@ impl<T: Send + Sync + Default + 'static> InitializedSandbox<T> {
             .clone();
         let system_vm_socket_info: (String, SocketType) =
             self.sandbox_config.system_vm_socket_info().clone();
+        let ramfs_filename: Option<String> =
+            self.sandbox_config.ramfs_filename().map(|s| s.to_string());
         let console_file: Option<String> =
             self.sandbox_config.console_file().map(|s| s.to_string());
         let hwloc: Option<hwloc::HwLoc> = self.sandbox_config.hwloc();
@@ -137,6 +139,7 @@ impl<T: Send + Sync + Default + 'static> InitializedSandbox<T> {
                     system_vm_socket_info,
                     self.guest_binary_path.clone(),
                     self.program_args.clone(),
+                    ramfs_filename,
                     console_file,
                     hwloc,
                     self.kernel_binary_path.clone(),

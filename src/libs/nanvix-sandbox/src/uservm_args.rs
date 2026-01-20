@@ -35,6 +35,8 @@ pub struct UserVmArgs {
     program: String,
     /// Optional command-line arguments to pass to the program.
     program_args: Option<String>,
+    /// Optional ramfs image to attach inside the guest filesystem.
+    ramfs_filename: Option<String>,
     /// Optional file path for redirecting console output.
     console_file: Option<String>,
     /// Optional hardware locality configuration for CPU affinity and topology information.
@@ -85,6 +87,7 @@ impl UserVmArgs {
         system_vm_socket_info: (String, SocketType),
         program: String,
         program_args: Option<String>,
+        ramfs_filename: Option<String>,
         console_file: Option<String>,
         hwloc: Option<hwloc::HwLoc>,
         kernel_binary_path: String,
@@ -98,6 +101,7 @@ impl UserVmArgs {
             system_vm_socket_info,
             program,
             program_args,
+            ramfs_filename,
             console_file,
             hwloc,
             kernel_binary_path,
@@ -171,6 +175,19 @@ impl UserVmArgs {
     ///
     pub fn program_args(&self) -> Option<&str> {
         self.program_args.as_deref()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the optional ramfs image filename.
+    ///
+    /// # Returns
+    ///
+    /// The ramfs image filename when provided.
+    ///
+    pub fn ramfs_filename(&self) -> Option<&str> {
+        self.ramfs_filename.as_deref()
     }
 
     ///

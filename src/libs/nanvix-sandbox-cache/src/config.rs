@@ -48,6 +48,8 @@ pub struct SandboxCacheConfig<T> {
     console_file: Option<String>,
     /// Optional hardware locality configuration for CPU affinity and topology information.
     hwloc: Option<HwLoc>,
+    /// Optional ramfs image to attach to every user VM.
+    ramfs_filename: Option<String>,
     /// Number of network namespaces to prefill in the pool (0 enables lazy initialization).
     netns_pool_size: usize,
     /// Path to kernel binary.
@@ -94,6 +96,7 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
     /// - `system_vm_socket_type`: Socket type for system VM communication.
     /// - `console_file`: Optional file path for redirecting console output.
     /// - `hwloc`: Optional hardware locality configuration.
+    /// - `ramfs_filename`: Optional ramfs image for guest filesystem.
     /// - `netns_pool_size`: Number of network namespaces to prefill (0 for lazy initialization).
     /// - `kernel_binary_path`: Path to kernel binary.
     /// - `linuxd_binary_path`: Path to the Linux Daemon binary (only if not in single-process mode).
@@ -116,6 +119,7 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
         system_vm_socket_type: SocketType,
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
+        ramfs_filename: Option<String>,
         netns_pool_size: usize,
         kernel_binary_path: &str,
         #[cfg(not(feature = "single-process"))] linuxd_binary_path: &str,
@@ -135,6 +139,7 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
             system_vm_socket_type,
             console_file,
             hwloc,
+            ramfs_filename,
             netns_pool_size,
             kernel_binary_path: kernel_binary_path.to_string(),
             #[cfg(not(feature = "single-process"))]
@@ -216,6 +221,19 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
     ///
     pub fn hwloc(&self) -> Option<HwLoc> {
         self.hwloc.clone()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the optional ramfs image path configured for all sandboxes.
+    ///
+    /// # Returns
+    ///
+    /// The ramfs image path when provided.
+    ///
+    pub fn ramfs_filename(&self) -> Option<&str> {
+        self.ramfs_filename.as_deref()
     }
 
     ///
