@@ -15,6 +15,7 @@
 use ::anyhow::Result;
 use ::std::{
     env,
+    fs,
     path::{
         Path,
         PathBuf,
@@ -168,7 +169,24 @@ impl Args {
                 },
                 // Set ramfs file.
                 Self::OPT_RAMFS if i + 1 < args.len() => {
-                    ramfs_filename = Some(args[i + 1].clone());
+                    let ramfs_arg: String = args[i + 1].clone();
+                    let canonical_path: PathBuf =
+                        fs::canonicalize(&ramfs_arg).map_err(|error| {
+                            anyhow::anyhow!(
+                                "failed to canonicalize ramfs path (path={}, error={error})",
+                                ramfs_arg
+                            )
+                        })?;
+
+                    let canonical_str: &str =
+                        canonical_path.as_path().to_str().ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "ramfs path is not valid UTF-8 (path={})",
+                                canonical_path.display()
+                            )
+                        })?;
+
+                    ramfs_filename = Some(canonical_str.to_string());
                     i += 1;
                 },
                 // Set initrd arguments.
