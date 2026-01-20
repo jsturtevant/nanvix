@@ -236,6 +236,8 @@ pub fn shutdown(_status: usize) -> ! {
 pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
     trace!("{magic:?}, {info:?}");
 
+    let mut memory_regions: LinkedList<MemoryRegion<VirtualAddress>> = LinkedList::new();
+
     extern "C" {
         static __KERNEL_END: u8;
     }
@@ -279,9 +281,40 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
         MemoryRegionType::Mmio,
         AccessPermission::RDONLY,
     )?;
-
-    let mut memory_regions: LinkedList<MemoryRegion<VirtualAddress>> = LinkedList::new();
     memory_regions.push_back(guest_fs_region);
+
+    // Get manifest region.
+    let (guest_fs_manifest_base, guest_fs_manifest_size): (u64, u64) = unsafe {
+        let region: GuestMemoryRegion = (*peb_ptr).guest_fs_manifest;
+        (region.ptr, region.size)
+    };
+
+    // Print information on guest filesystem manifest.
+    info!(
+        "guest_fs_manifest_base={:#010x}, guest_fs_manifest_size={:#010x}",
+        guest_fs_manifest_base, guest_fs_manifest_size
+    );
+
+    // Create a memory region for the guest filesystem manifest.
+    let guest_fs_manifest: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+        "guest filesystem manifest",
+        VirtualAddress::from_raw_value(guest_fs_manifest_base as usize),
+        guest_fs_manifest_size as usize,
+        MemoryRegionType::Mmio,
+        AccessPermission::RDONLY,
+    )?;
+    memory_regions.push_back(guest_fs_manifest);
+
+    unsafe {
+        if let Err(e) = hyperlight_guest::fs::init(
+            guest_fs_manifest_base as *const u8,
+            guest_fs_manifest_size as usize,
+        ) {
+            let reason: &str = "failed to initialize guest filesystem";
+            error!("parse_bootinfo(): {reason}: {e}");
+            return Err(Error::new(ErrorCode::BadFile, reason));
+        }
+    }
 
     let mut kernel_modules: LinkedList<KernelModule> = LinkedList::new();
 

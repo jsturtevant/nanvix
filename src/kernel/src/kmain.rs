@@ -66,6 +66,11 @@ use ::sys::{
     pm::ProcessIdentifier,
     ExitStatus,
 };
+#[cfg(feature = "hyperlight")]
+use hyperlight_guest::{
+    fs,
+    Read,
+};
 
 #[cfg(feature = "smp")]
 use crate::mm::kredzone;
@@ -331,6 +336,32 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
             panic!("failed to initialize process manager: {:?}", err);
         },
     };
+
+    #[cfg(feature = "hyperlight")]
+    {
+        // Print file contents available through the hyperlight guest filesystem.
+        let mut buf: [u8; 64] = [0; 64];
+        let mut file = match fs::open("/README.md") {
+            Ok(f) => f,
+            Err(e) => {
+                error!("failed to open file: {:?}", e);
+                panic!("failed to open file: {:?}", e);
+            },
+        };
+        loop {
+            match file.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => match core::str::from_utf8(&buf[..n]) {
+                    Ok(text) => info!("file chunk: {}", text.trim_end_matches('\n')),
+                    Err(_) => info!("file chunk (hex): {:02x?}", &buf[..n]),
+                },
+                Err(e) => {
+                    error!("failed to read file: {:?}", e);
+                    panic!("failed to read file: {:?}", e);
+                },
+            }
+        }
+    }
 
     // Start application cores.
     #[cfg(feature = "smp")]
