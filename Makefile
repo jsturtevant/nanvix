@@ -307,7 +307,7 @@ ALL_GUEST_RUST_LIBS_TEST_LIST := arch bitmap config elf error type-safe proc raw
 ALL_GUEST_DAEMONS := memd procd
 ALL_GUEST_BENCHMARKS := echo-rust-nostd noop-rust-nostd
 ALL_GUEST_APPLICATIONS := hello-rust-nostd
-ALL_GUEST_TESTS := testd file-rust thread-rust linux-app arch-rust
+ALL_GUEST_TESTS := testd file-rust thread-rust stress-rust linux-app arch-rust
 ALL_GUEST_BINARIES := $(ALL_GUEST_DAEMONS) $(ALL_GUEST_BENCHMARKS) $(ALL_GUEST_APPLICATIONS)
 ALL_GUEST_BINARIES += $(ALL_GUEST_TESTS)
 
@@ -411,6 +411,7 @@ distclean: clean
 	$(FORCE_RM_CMD) $(BINARIES_DIR)
 	$(FORCE_RM_CMD) $(PYTHON_VENV_DIRECTORY)
 	$(FORCE_RM_CMD) $(SYSROOT_DIR)
+	$(FORCE_RM_CMD) $(SYSROOT_LINK)
 
 # Installs build artifacts.
 install: all-nanvix
@@ -445,6 +446,7 @@ help:
 	@echo "  clean        Remove build artifacts and intermediate files"
 	@echo "  distclean    Cleans everything"
 	@echo "  help         Show this help message"
+	@echo "  test         Run unit and system tests sequentially"
 	@echo ""
 	@echo "Development Targets"
 	@echo "  check           Run all validation checks (syntax, compilation)"
@@ -661,6 +663,15 @@ endif
 #===================================================================================================
 # Build Rules for Running Tests
 #===================================================================================================
+
+.PHONY: test
+test:
+	@$(MAKE) run-unit-tests
+ifneq ($(strip $(filter $(MACHINE),microvm hyperlight)),)
+	@$(MAKE) run-nanvixd-tests
+else
+	@echo "Skipping run-nanvixd-tests; MACHINE=$(MACHINE) does not support nanvixd system tests."
+endif
 
 run-unit-tests: all-nanvix test-guest-rlibs
 
