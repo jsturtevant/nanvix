@@ -193,7 +193,7 @@ pub fn init(
             page_table.map(
                 PageAddress::new(PageAligned::from_raw_value(raw_vaddr)?),
                 paddr,
-                true,
+                false,
                 true,
                 false,
                 AccessPermission::RDWR,
