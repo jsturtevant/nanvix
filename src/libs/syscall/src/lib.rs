@@ -373,3 +373,14 @@ impl LinuxDaemonMessage {
         unsafe { mem::transmute(self) }
     }
 }
+
+//==================================================================================================
+
+pub fn init(base: usize, size: usize) {
+    unsafe {
+        if let Err(e) = hyperlight_guest::fs::init(base as *const u8, size as usize) {
+            let reason: &str = "failed to initialize guest filesystem";
+            panic!("parse_bootinfo(): {reason}: {e}");
+        }
+    }
+}

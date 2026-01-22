@@ -5,10 +5,7 @@
 // Imports
 //==================================================================================================
 
-use crate::{
-    errno::__errno_location,
-    fcntl,
-};
+use crate::errno::__errno_location;
 use ::core::ffi;
 use ::sys::error::ErrorCode;
 use ::sysapi::{
@@ -18,6 +15,7 @@ use ::sysapi::{
     },
     sys_types::mode_t,
 };
+use hyperlight_guest::fs;
 
 //==================================================================================================
 // Standalone Functions
@@ -74,12 +72,22 @@ pub unsafe extern "C" fn open(path: *const c_char, flags: c_int, mode: mode_t) -
     };
 
     // Run system call and check for errors.
-    match fcntl::open(pathname, flags, mode) {
-        Ok(fd) => fd,
-        Err(error) => {
-            ::syslog::error!("open(): {error:?} (path={path:?}, flags={flags:?}, mode={mode:?})",);
-            *__errno_location() = error.code.get();
-            -1
+    // match fcntl::open(pathname, flags, mode) {
+    //     Ok(fd) => fd,
+    //     Err(error) => {
+    //         ::syslog::error!("open(): {error:?} (path={path:?}, flags={flags:?}, mode={mode:?})",);
+    //         *__errno_location() = error.code.get();
+    //         -1
+    //     },
+    // }
+
+    let file = match fs::open(pathname) {
+        Ok(f) => f,
+        Err(e) => {
+            ::syslog::error!("failed to open file: {:?}", e);
+            panic!("failed to open file: {:?}", e);
         },
-    }
+    };
+
+    file.fd()
 }
