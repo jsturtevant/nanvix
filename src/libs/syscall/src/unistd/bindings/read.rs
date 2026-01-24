@@ -100,13 +100,20 @@ pub unsafe extern "C" fn read(fd: c_int, buffer: *mut c_void, count: c_size_t) -
     //     },
     // }
 
-    let mut file = File::from_fd(fd);
+    // SAFETY: fd comes from C API, assumed valid. We use from_raw_fd because
+    // the fd ownership belongs to the caller, not us.
+    let mut file: File = unsafe { File::from_raw_fd(fd) };
 
-    match file.read(buffer) {
+    let result: c_ssize_t = match file.read(buffer) {
         Ok(bytes_read) => bytes_read as c_ssize_t,
         Err(e) => {
             ::syslog::error!("failed to read file: {:?}, fd={}", e, fd);
             panic!("failed to read file: {:?}", e);
         },
-    }
+    };
+
+    // Prevent Drop from closing the fd - we don't own it, the caller does.
+    ::core::mem::forget(file);
+
+    result
 }

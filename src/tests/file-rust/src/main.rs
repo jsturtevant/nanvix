@@ -49,7 +49,7 @@ use ::syscall::unistd;
 
 #[unsafe(no_mangle)]
 pub fn main() -> Result<(), Error> {
-    let guest_fs_manifest_base: usize = 0x076e6000;
+    let guest_fs_manifest_base: usize = 0x0fa14000;
     let guest_fs_manifest_size: usize = 0x00000058;
     ::syslog::info!(
         "guest_fs_manifest_base={:#x}, guest_fs_manifest_size={:#x}",

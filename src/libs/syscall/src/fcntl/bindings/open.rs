@@ -88,7 +88,7 @@ pub unsafe extern "C" fn open(path: *const c_char, flags: c_int, mode: mode_t) -
             panic!("failed to open file: {:?}", e);
         },
     };
-    let fd = file.fd().expect("expected read-only file with fd");
+    let fd: c_int = file.into_raw_fd();
     ::syslog::trace!("file opened(): fd={}", fd);
     fd
 }
