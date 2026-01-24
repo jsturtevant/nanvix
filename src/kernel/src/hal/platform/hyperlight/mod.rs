@@ -250,6 +250,37 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
         ProcessEnvironmentBlock::init(peb_ptr)?;
         ProcessEnvironmentBlock::set_guest_function_dispatch_ptr(0xdeadbeef)?;
     };
+    // Dump PEB structure for debugging.
+    unsafe {
+        debug!("peb_base={:#010x}", peb_base);
+        debug!("peb.security_cookie_seed={:#010x}", (*peb_ptr).security_cookie_seed);
+        debug!("peb.guest_function_dispatch_ptr={:#010x}", (*peb_ptr).guest_function_dispatch_ptr);
+        debug!("peb.credits={:#010x}", (*peb_ptr).credits_value);
+        debug!("peb.code_prt={:#010x}", (*peb_ptr).code_ptr);
+        debug!("peb.input_stack.ptr={:#010x}", (*peb_ptr).input_stack.ptr);
+        debug!("peb.input_stack.size={:#010x}", (*peb_ptr).input_stack.size);
+        debug!("peb.output_stack.pts={:#010x}", (*peb_ptr).output_stack.ptr);
+        debug!("peb.output_stack.size={:#010x}", (*peb_ptr).output_stack.size);
+
+        debug!("peb.init_data.ptr={:#010x}", (*peb_ptr).init_data.ptr);
+        debug!("peb.init_data.size={:#010x}", (*peb_ptr).init_data.size);
+        debug!("peb.guest_heap.ptr={:#010x}", (*peb_ptr).guest_heap.ptr);
+        debug!("peb.guest_heap.size={:#010x}", (*peb_ptr).guest_heap.size);
+        debug!("peb.guest_stack.ptr={:#010x}", (*peb_ptr).guest_stack.min_user_stack_address);
+        debug!("peb.guest_stack.size={:#010x}", (*peb_ptr).guest_stack.user_stack_address);
+        debug!(
+            "peb.host_function_definitions.ptr={:#010x}",
+            (*peb_ptr).host_function_definitions.ptr
+        );
+        debug!(
+            "peb.host_function_definitions.size={:#010x}",
+            (*peb_ptr).host_function_definitions.size
+        );
+        debug!("peb.guest_fs_region.ptr={:#010x}", (*peb_ptr).guest_fs_region.ptr);
+        debug!("peb.guest_fs_region.size={:#010x}", (*peb_ptr).guest_fs_region.size);
+        debug!("peb.guest_fs_manifest.ptr={:#010x}", (*peb_ptr).guest_fs_manifest.ptr);
+        debug!("peb.guest_fs_manifest.size={:#010x}", (*peb_ptr).guest_fs_manifest.size);
+    }
 
     // Read actual size and relocate only that amount
     let (initrd_base, initrd_size, (cmdline_len, cmdline)) = unsafe {
@@ -554,20 +585,28 @@ unsafe fn parse_initrd_image(
     let initrd_cmdline: (u8, String) =
         read_initrd_cmdline(current_initrd_start, actual_initrd_size, total_allocation_size)?;
 
-    // Relocate initrd to default base address if needed.
-    let initrd_base: usize = if current_initrd_start != ::config::hyperlight::DEFAULT_INITRD_BASE {
+    debug!("parse_initrd_image():readcmd");
+    // Relocate initrd to skip the 8-byte size header.
+    // We use init_data_start (from PEB) as the destination instead of a hardcoded constant,
+    // because Hyperlight's memory layout varies based on kernel code size.
+    let initrd_base: usize = {
+        debug!("parse_initrd_image():relocate");
         let src_ptr: *const u8 = current_initrd_start as *const u8;
-        let dst_ptr: *mut u8 = ::config::hyperlight::DEFAULT_INITRD_BASE as *mut u8;
+        let dst_ptr: *mut u8 = init_data_start as *mut u8;
+        debug!(
+            "parse_initrd_image(): ptr copy src={:#010x}, dst={:#010x}",
+            src_ptr as usize, dst_ptr as usize
+        );
         core::ptr::copy(src_ptr, dst_ptr, actual_initrd_size);
 
         debug!(
-            "parse_initrd_image(): initrd relocated from {current_initrd_start:#010x} to {:#010x}",
-            ::config::hyperlight::DEFAULT_INITRD_BASE
+            "parse_initrd_image(): initrd relocated from {current_initrd_start:#010x} to \
+             {init_data_start:#010x}"
         );
-        ::config::hyperlight::DEFAULT_INITRD_BASE
-    } else {
-        current_initrd_start
+        init_data_start
     };
+
+    debug!("parse_initrd_image():completed");
 
     Ok((initrd_base, actual_initrd_size, initrd_cmdline))
 }
@@ -660,5 +699,6 @@ unsafe fn read_initrd_cmdline(
         },
     };
 
+    info!("args: {args_str}");
     Ok((args_len, args_str.to_string()))
 }

@@ -20,6 +20,7 @@ sys = { workspace = true, features = ["kcall"] }
 sysapi = { workspace = true }
 syscall = { workspace = true, features = ["syscall"] }
 syslog = { workspace = true, default-features = true }
+hyperlight-guest = { workspace = true }
 
 [build-dependencies]
 cc = { workspace = true }

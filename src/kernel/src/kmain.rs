@@ -248,7 +248,7 @@ fn spawn_servers(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(kargs: &KernelArguments) {
-    info!("initializing the kernel...");
+    info!("initializing the kernel... (ticks={})", pm::ticks());
 
     // Initialize the kernel heap.
     if let Err(e) = unsafe { kheap::init() } {
@@ -432,7 +432,7 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
     startup::wait().expect("failed to synchronize application cores");
 
     // Dump system statistics.
-    info!("System Statistics:");
+    info!("System Statistics (ticks={}):", pm::ticks());
     info!("- No. Times Kernel Was Idle: {:?}", PERF_SCHED_KERNEL_IDLE.load(Ordering::Relaxed));
     info!(
         "- No. Soft Context Switches: {:?}",

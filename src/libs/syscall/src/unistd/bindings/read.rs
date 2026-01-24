@@ -105,7 +105,7 @@ pub unsafe extern "C" fn read(fd: c_int, buffer: *mut c_void, count: c_size_t) -
     match file.read(buffer) {
         Ok(bytes_read) => bytes_read as c_ssize_t,
         Err(e) => {
-            ::syslog::error!("failed to read file: {:?}", e);
+            ::syslog::error!("failed to read file: {:?}, fd={}", e, fd);
             panic!("failed to read file: {:?}", e);
         },
     }

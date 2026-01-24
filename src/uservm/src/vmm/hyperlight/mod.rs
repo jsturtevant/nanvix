@@ -260,11 +260,11 @@ impl Vmm {
             );
         }
 
-        let fs_image: Arc<HyperlightFSImage> = Arc::new(fs_builder.build()?);
+        let fs_image: HyperlightFSImage = fs_builder.build()?;
 
         // Creates Hyperlight sandbox.
-        let mut sandbox: UninitializedSandbox = UninitializedSandbox::new(guest_env, Some(config))?;
-        sandbox.set_hyperlight_fs(fs_image);
+        let mut sandbox: UninitializedSandbox =
+            UninitializedSandbox::new(guest_env, Some(config))?.with_hyperlight_fs(fs_image);
         let manager: SandboxMemoryManager<ExclusiveSharedMemory> = sandbox.mgr.clone();
         let vmem: Arc<Mutex<VirtualMemory>> = Arc::new(Mutex::new(VirtualMemory {
             manager: manager.clone(),

@@ -23,7 +23,7 @@ use ::sys::error::{
 // Constants
 //==================================================================================================
 
-pub const NUM_OF_SLABS: usize = 8;
+pub const NUM_OF_SLABS: usize = 10;
 const SLAB_COUNT: usize = 32;
 pub const MIN_SLAB_SIZE: usize = SLAB_COUNT * mem::PAGE_SIZE;
 pub const MIN_HEAP_SIZE: usize = NUM_OF_SLABS * MIN_SLAB_SIZE;
@@ -54,6 +54,8 @@ enum SlabSize {
     Slab128 = 128,
     Slab256 = 256,
     Slab512 = 512,
+    Slab1024 = 1024,
+    Slab2048 = 2048,
     Slab4096 = 4096,
 }
 
@@ -65,6 +67,8 @@ struct Kheap {
     slab_128_bytes: Slab,
     slab_256_bytes: Slab,
     slab_512_bytes: Slab,
+    slab_1024_bytes: Slab,
+    slab_2048_bytes: Slab,
     slab_4096_bytes: Slab,
 }
 
@@ -145,8 +149,18 @@ impl Kheap {
                 slab_size,
                 SlabSize::Slab512 as usize,
             )?,
-            slab_4096_bytes: Slab::from_raw_parts(
+            slab_1024_bytes: Slab::from_raw_parts(
                 heap_start_addr.add(7 * slab_size),
+                slab_size,
+                SlabSize::Slab1024 as usize,
+            )?,
+            slab_2048_bytes: Slab::from_raw_parts(
+                heap_start_addr.add(8 * slab_size),
+                slab_size,
+                SlabSize::Slab2048 as usize,
+            )?,
+            slab_4096_bytes: Slab::from_raw_parts(
+                heap_start_addr.add(9 * slab_size),
                 slab_size,
                 SlabSize::Slab4096 as usize,
             )?,
@@ -162,6 +176,8 @@ impl Kheap {
             SlabSize::Slab128 => self.slab_128_bytes.allocate().map_err(|_| AllocError),
             SlabSize::Slab256 => self.slab_256_bytes.allocate().map_err(|_| AllocError),
             SlabSize::Slab512 => self.slab_512_bytes.allocate().map_err(|_| AllocError),
+            SlabSize::Slab1024 => self.slab_1024_bytes.allocate().map_err(|_| AllocError),
+            SlabSize::Slab2048 => self.slab_2048_bytes.allocate().map_err(|_| AllocError),
             SlabSize::Slab4096 => self.slab_4096_bytes.allocate().map_err(|_| AllocError),
         }
     }
@@ -175,6 +191,8 @@ impl Kheap {
             SlabSize::Slab128 => self.slab_128_bytes.deallocate(ptr).map_err(|_| AllocError),
             SlabSize::Slab256 => self.slab_256_bytes.deallocate(ptr).map_err(|_| AllocError),
             SlabSize::Slab512 => self.slab_512_bytes.deallocate(ptr).map_err(|_| AllocError),
+            SlabSize::Slab1024 => self.slab_1024_bytes.deallocate(ptr).map_err(|_| AllocError),
+            SlabSize::Slab2048 => self.slab_2048_bytes.deallocate(ptr).map_err(|_| AllocError),
             SlabSize::Slab4096 => self.slab_4096_bytes.deallocate(ptr).map_err(|_| AllocError),
         }
     }
@@ -188,7 +206,9 @@ impl Kheap {
             65..=128 => Ok(SlabSize::Slab128),
             129..=256 => Ok(SlabSize::Slab256),
             257..=512 => Ok(SlabSize::Slab512),
-            4096 => Ok(SlabSize::Slab4096),
+            513..=1024 => Ok(SlabSize::Slab1024),
+            1025..=2048 => Ok(SlabSize::Slab2048),
+            2049..=4096 => Ok(SlabSize::Slab4096),
             _ => Err(AllocError),
         }
     }

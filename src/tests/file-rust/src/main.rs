@@ -25,6 +25,12 @@ extern crate nvx;
 // mod r#unsafe;
 use ::syslog::error;
 
+//use ::syslog::info;
+// use hyperlight_guest::{
+//     Read,
+//     fs,
+// };
+
 //==================================================================================================
 // Imports
 //==================================================================================================
@@ -43,14 +49,40 @@ use ::syscall::unistd;
 
 #[unsafe(no_mangle)]
 pub fn main() -> Result<(), Error> {
-    let guest_fs_manifest_base: usize = 0x076e3000;
+    let guest_fs_manifest_base: usize = 0x076e6000;
     let guest_fs_manifest_size: usize = 0x00000058;
-
+    ::syslog::info!(
+        "guest_fs_manifest_base={:#x}, guest_fs_manifest_size={:#x}",
+        guest_fs_manifest_base,
+        guest_fs_manifest_size
+    );
     // Dump contents of the manifest
     syscall::init(guest_fs_manifest_base, guest_fs_manifest_size);
 
     let pathname_buf: &[u8] = b"/README.md\0";
     let pathname: *const c_char = pathname_buf.as_ptr().cast::<c_char>();
+
+    // let mut buf: [u8; 64] = [0; 64];
+    // let mut file = match fs::open("/README.md") {
+    //     Ok(f) => f,
+    //     Err(e) => {
+    //         error!("failed to open file: {:?}", e);
+    //         panic!("failed to open file: {:?}", e);
+    //     },
+    // };
+    // loop {
+    //     match file.read(&mut buf) {
+    //         Ok(0) => break,
+    //         Ok(n) => match core::str::from_utf8(&buf[..n]) {
+    //             Ok(text) => info!("file chunk: {}", text.trim_end_matches('\n')),
+    //             Err(_) => info!("file chunk (hex): {:02x?}", &buf[..n]),
+    //         },
+    //         Err(e) => {
+    //             error!("failed to read file: {:?}", e);
+    //             panic!("failed to read file: {:?}", e);
+    //         },
+    //     }
+    // }
 
     // Print file contents available through the hyperlight guest filesystem.
     let mut buf: [u8; 64] = [0; 64];
