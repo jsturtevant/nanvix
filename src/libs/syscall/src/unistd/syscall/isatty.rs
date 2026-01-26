@@ -40,7 +40,7 @@ pub fn isatty(fd: RawFileDescriptor) -> Result<bool, Error> {
     match fd {
         STDIN_FILENO | STDOUT_FILENO | STDERR_FILENO => Ok(true),
         fd if fd > 0 => {
-            ::syslog::error!("isatty(): file descriptor is not a terminal (fd={})", fd);
+            ::syslog::trace!("isatty(): file descriptor is not a terminal (fd={})", fd);
             Ok(false)
         },
         _ => {

@@ -5,81 +5,54 @@
 // Imports
 //==================================================================================================
 
-use crate::{
-    unistd::message::{
-        CloseRequest,
-        CloseResponse,
-    },
-    LinuxDaemonMessage,
-    LinuxDaemonMessageHeader,
+use ::sys::error::{
+    Error,
+    ErrorCode,
 };
-use ::sys::{
-    error::{
-        Error,
-        ErrorCode,
-    },
-    ipc::Message,
-    pm::ThreadIdentifier,
+use ::sysapi::unistd::{
+    STDERR_FILENO,
+    STDIN_FILENO,
+    STDOUT_FILENO,
 };
+use hyperlight_guest::fs;
 
 //==================================================================================================
 // Standalone Functions
 //==================================================================================================
 
+/// Closes a file descriptor.
+///
+/// # Description
+///
+/// Closes the file descriptor `fd` using `hyperlight_guest::fs::free_fd()`.
+/// Standard file descriptors (stdin, stdout, stderr) are silently ignored.
+///
+/// # Parameters
+///
+/// - `fd`: File descriptor to close.
+///
+/// # Returns
+///
+/// Upon successful completion, `Ok(())` is returned. Otherwise, an error is returned.
+///
 pub fn close(fd: i32) -> Result<(), Error> {
-    let tid: ThreadIdentifier = ::sys::kcall::pm::gettid()?;
+    ::syslog::trace!("close(): fd={}", fd);
 
-    // Build request and send it.
-    let request: Message = CloseRequest::build(tid, fd);
-    ::sys::kcall::ipc::send(&request)?;
-
-    // Receive response.
-    let response: Message = ::sys::kcall::ipc::recv()?;
-
-    // Check whether system call succeeded or not.
-    if response.status != 0 {
-        // System call failed, parse error code and return it.
-        let error_code: ErrorCode = ErrorCode::try_from(response.status)?;
-        ::syslog::error!("close(): failed (error={})", error_code);
-        Err(Error::new(error_code, "close() failed"))
-    } else {
-        // System call succeeded, parse response.
-        match LinuxDaemonMessage::try_from_bytes(response.payload) {
-            // Response was successfully parsed.
-            Ok(message) => match message.header {
-                // Response was successfully parsed.
-                LinuxDaemonMessageHeader::CloseResponse => {
-                    // Parse response.
-                    let _: CloseResponse = CloseResponse::from_bytes(message.payload);
-
-                    // Return result.
-                    Ok(())
-                },
-                // Response was not successfully parsed.
-                _ => Err(Error::new(ErrorCode::InvalidMessage, "unexpected message header")),
-            },
-            // Response was not successfully parsed.
-            _ => Err(Error::new(ErrorCode::InvalidMessage, "invalid message")),
-        }
+    // Ignore standard file descriptors.
+    if fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO {
+        ::syslog::trace!("close(): ignoring standard file descriptor fd={}", fd);
+        return Ok(());
     }
-}
 
-pub mod bindings {
-    use crate::errno::__errno_location;
-    use ::sysapi::ffi::c_int;
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn close(fd: c_int) -> c_int {
-        ::syslog::trace!("close(): fd = {}", fd);
-        match crate::unistd::close(fd) {
-            Ok(()) => 0,
-            Err(error) => {
-                ::syslog::error!("close(): failed ({:?})", error);
-                unsafe {
-                    *__errno_location() = error.code.get();
-                }
-                -1
-            },
-        }
+    // Free the file descriptor using hyperlight_guest::fs::free_fd().
+    match fs::free_fd(fd) {
+        Ok(()) => {
+            ::syslog::trace!("close(): fd={} closed successfully", fd);
+            Ok(())
+        },
+        Err(e) => {
+            ::syslog::error!("close(): failed to close fd={}, error={:?}", fd, e);
+            Err(Error::new(ErrorCode::BadFile, "close() failed"))
+        },
     }
 }

@@ -71,24 +71,24 @@ pub unsafe extern "C" fn open(path: *const c_char, flags: c_int, mode: mode_t) -
         },
     };
 
-    // Run system call and check for errors.
-    // match fcntl::open(pathname, flags, mode) {
-    //     Ok(fd) => fd,
-    //     Err(error) => {
-    //         ::syslog::error!("open(): {error:?} (path={path:?}, flags={flags:?}, mode={mode:?})",);
-    //         *__errno_location() = error.code.get();
-    //         -1
-    //     },
-    // }
-
-    let file = match fs::open(pathname) {
+    // Open file using hyperlight guest filesystem (read-only).
+    let file: fs::File = match fs::open(pathname) {
         Ok(f) => f,
         Err(e) => {
-            ::syslog::error!("failed to open file: {:?}", e);
-            panic!("failed to open file: {:?}", e);
+            ::syslog::error!("open(): failed to open file (path={:?}, error={:?})", pathname, e);
+            // Map hyperlight error to POSIX errno.
+            let errno: i32 = match e {
+                fs::FsError::NotFound => ErrorCode::NoSuchEntry.get(),
+                fs::FsError::NotAFile => ErrorCode::IsDirectory.get(),
+                fs::FsError::NotADirectory => ErrorCode::InvalidDirectory.get(),
+                fs::FsError::InvalidPath => ErrorCode::InvalidArgument.get(),
+                _ => ErrorCode::IoErr.get(),
+            };
+            *__errno_location() = errno;
+            return -1;
         },
     };
     let fd: c_int = file.into_raw_fd();
-    ::syslog::trace!("file opened(): fd={}", fd);
+    ::syslog::trace!("open(): fd={}", fd);
     fd
 }

@@ -10,6 +10,7 @@ pub mod access;
 pub mod chdir;
 pub mod chown;
 pub mod chroot;
+pub mod close;
 pub mod dup;
 pub mod dup2;
 pub mod execv;

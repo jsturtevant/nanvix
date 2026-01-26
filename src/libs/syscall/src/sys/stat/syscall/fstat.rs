@@ -5,13 +5,22 @@
 // Imports
 //==================================================================================================
 
-use crate::sys::stat::message::FileStatRequest;
-use ::sys::{
-    error::Error,
-    ipc::Message,
-    pm::ThreadIdentifier,
+use ::sys::error::{
+    Error,
+    ErrorCode,
 };
-use sysapi::sys_stat;
+use ::sysapi::{
+    sys_stat::{
+        self,
+        file_type::S_IFREG,
+    },
+    unistd::{
+        STDERR_FILENO,
+        STDIN_FILENO,
+        STDOUT_FILENO,
+    },
+};
+use hyperlight_guest::fs::File;
 
 //==================================================================================================
 // Standalone Functions
@@ -20,7 +29,8 @@ use sysapi::sys_stat;
 ///
 /// # Description
 ///
-/// The `stat()` system call obtains information about a file.
+/// The `fstat()` system call obtains information about a file using
+/// `hyperlight_guest::fs::File::from_raw_fd()` + `File::size()`.
 ///
 /// # Parameters
 ///
@@ -33,33 +43,81 @@ use sysapi::sys_stat;
 /// instead.
 ///
 pub fn fstat(fd: i32, buf: &mut sys_stat::stat) -> Result<(), Error> {
-    // Send request.
-    fstat_request(fd)?;
+    ::syslog::trace!("fstat(): fd={}", fd);
 
-    // Wait for response.
-    *buf = crate::sys::stat::syscall::fstatat_response()?;
+    // Handle standard file descriptors specially.
+    if fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO {
+        // For standard streams, return a character device-like stat.
+        *buf = sys_stat::stat::default();
+        buf.st_dev = 0;
+        buf.st_ino = 0;
+        #[allow(clippy::as_conversions)]
+        {
+            buf.st_mode = ::sysapi::sys_stat::file_type::S_IFCHR | 0o666;
+        }
+        buf.st_nlink = 1;
+        buf.st_uid = 0;
+        buf.st_gid = 0;
+        buf.st_rdev = 0;
+        buf.st_size = 0;
+        buf.st_atim = ::sysapi::time::timespec::default();
+        buf.st_mtim = ::sysapi::time::timespec::default();
+        buf.st_ctim = ::sysapi::time::timespec::default();
+        buf.st_blksize = 512;
+        buf.st_blocks = 0;
+        return Ok(());
+    }
 
+    // SAFETY: fd comes from C API, assumed valid. We use from_raw_fd because
+    // the fd ownership belongs to the caller, not us.
+    let mut file: File = unsafe { File::from_raw_fd(fd) };
+
+    // Get the file size.
+    let size: u64 = match file.size() {
+        Ok(size) => size,
+        Err(e) => {
+            ::syslog::error!("fstat(): failed to get file size for fd={}: {:?}", fd, e);
+            // Prevent Drop from closing the fd - we don't own it, the caller does.
+            ::core::mem::forget(file);
+            return Err(Error::new(ErrorCode::BadFile, "fstat() failed"));
+        },
+    };
+
+    // Prevent Drop from closing the fd - we don't own it, the caller does.
+    ::core::mem::forget(file);
+
+    // Fill the POSIX stat structure with the metadata.
+    // For files opened via fd, we only know size - treat as regular file.
+    *buf = sys_stat::stat::default();
+    buf.st_dev = 0;
+    buf.st_ino = 0;
+    buf.st_mode = S_IFREG | 0o644; // Regular file with rw-r--r-- permissions.
+    buf.st_nlink = 1;
+    buf.st_uid = 0;
+    buf.st_gid = 0;
+    buf.st_rdev = 0;
+    // Convert u64 to i64 with overflow check.
+    buf.st_size = match size.try_into() {
+        Ok(s) => s,
+        Err(_) => {
+            ::syslog::error!("fstat(): size overflow (fd={}, size={})", fd, size);
+            return Err(Error::new(ErrorCode::ValueOverflow, "file size exceeds i64 range"));
+        },
+    };
+    buf.st_atim = ::sysapi::time::timespec::default();
+    buf.st_mtim = ::sysapi::time::timespec::default();
+    buf.st_ctim = ::sysapi::time::timespec::default();
+    buf.st_blksize = 512;
+    // Calculate blocks with saturating add to prevent overflow, then convert.
+    let blocks: u64 = size.saturating_add(511) / 512;
+    buf.st_blocks = match blocks.try_into() {
+        Ok(b) => b,
+        Err(_) => {
+            ::syslog::error!("fstat(): blocks overflow (fd={}, blocks={})", fd, blocks);
+            return Err(Error::new(ErrorCode::ValueOverflow, "block count exceeds i64 range"));
+        },
+    };
+
+    ::syslog::trace!("fstat(): fd={}, size={}", fd, size);
     Ok(())
-}
-
-///
-/// # Description
-///
-/// This function sends a request to the daemon to execute the `fstat()` system call.
-///
-/// # Parameters
-///
-/// - `fd`: File descriptor.
-///
-/// # Returns
-///
-/// Upon successful completion, empty result is returned. Upon failure, an error is returned
-/// instead.
-///
-fn fstat_request(fd: i32) -> Result<(), Error> {
-    let tid: ThreadIdentifier = ::sys::kcall::pm::gettid()?;
-
-    let message: Message = FileStatRequest::build(tid, fd);
-
-    ::sys::kcall::ipc::send(&message)
 }
