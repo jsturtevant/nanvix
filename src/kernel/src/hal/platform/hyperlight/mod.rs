@@ -336,17 +336,6 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
     )?;
     memory_regions.push_back(guest_fs_manifest);
 
-    unsafe {
-        if let Err(e) = hyperlight_guest::fs::init(
-            guest_fs_manifest_base as *const u8,
-            guest_fs_manifest_size as usize,
-        ) {
-            let reason: &str = "failed to initialize guest filesystem";
-            error!("parse_bootinfo(): {reason}: {e}");
-            return Err(Error::new(ErrorCode::BadFile, reason));
-        }
-    }
-
     let mut kernel_modules: LinkedList<KernelModule> = LinkedList::new();
 
     // Register initrd as a kernel module.
