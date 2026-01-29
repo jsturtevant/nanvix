@@ -236,10 +236,14 @@ impl Vmm {
         })?;
         config.set_stack_size(stack_size_u64);
 
-        // Create Hyperlight filesystem.
-        let mut fs_builder: HyperlightFSBuilder = HyperlightFSBuilder::new();
+        // Create Hyperlight filesystem with FAT mount for writable storage.
+        // Note: Size must fit within guest memory. Available space depends on kernel size.
+        // Using 1MB to avoid FAT type boundary issues (4MB can cause cluster count issues).
+        const FAT_MOUNT_SIZE: usize = 1024 * 1024; // 1MB
+        let fs_builder = HyperlightFSBuilder::new().add_empty_fat_mount("/data", FAT_MOUNT_SIZE)?;
 
-        if let Some(ramfs_path) = ramfs_filename.as_ref() {
+        // Optionally add read-only file as before.
+        let fs_builder = if let Some(ramfs_path) = ramfs_filename.as_ref() {
             let host_path: &Path = Path::new(ramfs_path);
             if !host_path.is_file() {
                 let reason: String = format!("ramfs file not found (path={ramfs_path})");
@@ -253,14 +257,20 @@ impl Vmm {
                 .unwrap_or_else(|| "ramfs".to_string());
             let guest_path: String = format!("/{guest_basename}");
 
-            fs_builder = fs_builder.add_file(ramfs_path, &guest_path)?;
             debug!(
                 "hyperlight::new(): attached ramfs (host_path={ramfs_path}, \
                  guest_path={guest_path})"
             );
-        }
+            fs_builder.add_file(ramfs_path, &guest_path)?
+        } else {
+            fs_builder
+        };
 
         let fs_image: HyperlightFSImage = fs_builder.build()?;
+        debug!(
+            "hyperlight::new(): created filesystem with FAT mount at /data ({} bytes)",
+            FAT_MOUNT_SIZE
+        );
 
         // Creates Hyperlight sandbox.
         let mut sandbox: UninitializedSandbox =

@@ -10,6 +10,13 @@ use crate::{
     ErrorCode,
 };
 use ::core::slice;
+use ::hyperlight_guest::{
+    fs::{
+        self,
+        File,
+    },
+    Write,
+};
 use ::sysapi::{
     ffi::{
         c_int,
@@ -21,6 +28,7 @@ use ::sysapi::{
     },
     unistd::{
         STDERR_FILENO,
+        STDIN_FILENO,
         STDOUT_FILENO,
     },
 };
@@ -88,18 +96,49 @@ pub unsafe extern "C" fn write(fd: c_int, buffer: *const c_void, count: c_size_t
         return -1;
     }
 
-    // Construct buffer from raw parts.
-    let buffer: &[u8] = slice::from_raw_parts(buffer as *const u8, count as usize);
+    // Handle stdout/stderr via existing syscall (VmbusWrite).
+    if fd == STDOUT_FILENO || fd == STDERR_FILENO {
+        let buffer: &[u8] = slice::from_raw_parts(buffer as *const u8, count as usize);
+        match crate::unistd::syscall::write(fd, buffer) {
+            Ok(bytes_written) => return bytes_written as c_ssize_t,
+            Err(error) => {
+                ::syslog::error!(
+                    "write(): {error:?} (fd={fd:?}, buffer={:?}, count={count:?})",
+                    buffer.as_ptr()
+                );
+                *__errno_location() = error.code.get();
+                return -1;
+            },
+        }
+    }
 
-    // Attempt to write to file descriptor and check for errors.
-    match crate::unistd::syscall::write(fd, buffer) {
-        Ok(bytes_written) => bytes_written as c_ssize_t,
-        Err(error) => {
-            ::syslog::error!(
-                "write(): {error:?} (fd={fd:?}, buffer={:?}, count={count:?})",
-                buffer.as_ptr()
-            );
-            *__errno_location() = error.code.get();
+    // Handle stdin (invalid for write).
+    if fd == STDIN_FILENO {
+        ::syslog::error!("write(): cannot write to stdin (fd={fd:?})");
+        *__errno_location() = ErrorCode::BadFile.get();
+        return -1;
+    }
+
+    // Write to FAT file via Hyperlight guest filesystem directly.
+    // File implements embedded_io::Write, so we can call write() directly.
+    let buffer: &[u8] = slice::from_raw_parts(buffer as *const u8, count as usize);
+    let mut file: File = File::from_fd(fd);
+    match file.write(buffer) {
+        Ok(bytes_written) => {
+            // Don't drop the File (it would close the fd).
+            let _ = file.into_raw_fd();
+            bytes_written as c_ssize_t
+        },
+        Err(fs::FsError::ReadOnly) => {
+            let _ = file.into_raw_fd();
+            ::syslog::error!("write(): read-only file system (fd={fd:?})");
+            *__errno_location() = ErrorCode::ReadOnlyFileSystem.get();
+            -1
+        },
+        Err(e) => {
+            let _ = file.into_raw_fd();
+            ::syslog::error!("write(): {e:?} (fd={fd:?})");
+            *__errno_location() = ErrorCode::IoErr.get();
             -1
         },
     }

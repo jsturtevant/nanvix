@@ -9,13 +9,28 @@ use crate::errno::__errno_location;
 use ::core::ffi;
 use ::sys::error::ErrorCode;
 use ::sysapi::{
+    fcntl::{
+        file_access_mode::{
+            O_RDONLY,
+            O_RDWR,
+            O_WRONLY,
+        },
+        file_creation_flags::{
+            O_CREAT,
+            O_EXCL,
+            O_TRUNC,
+        },
+    },
     ffi::{
         c_char,
         c_int,
     },
     sys_types::mode_t,
 };
-use hyperlight_guest::fs;
+use hyperlight_guest::fs::{
+    self,
+    OpenOptions,
+};
 
 //==================================================================================================
 // Standalone Functions
@@ -71,9 +86,34 @@ pub unsafe extern "C" fn open(path: *const c_char, flags: c_int, mode: mode_t) -
         },
     };
 
-    // Open file using hyperlight guest filesystem (read-only).
-    let file: fs::File = match fs::open(pathname) {
-        Ok(f) => f,
+    // Parse flags to determine access mode and creation options.
+    let access_mode: c_int = flags & 0x3;
+    let read: bool = access_mode == O_RDONLY || access_mode == O_RDWR;
+    let write: bool = access_mode == O_WRONLY || access_mode == O_RDWR;
+    let create: bool = (flags & O_CREAT) != 0;
+    let truncate: bool = (flags & O_TRUNC) != 0;
+    let create_new: bool = create && (flags & O_EXCL) != 0;
+
+    ::syslog::trace!(
+        "open(): parsed flags (read={read}, write={write}, create={create}, truncate={truncate}, \
+         create_new={create_new})"
+    );
+
+    // Build OpenOptions based on flags.
+    let file_result: Result<fs::File, fs::FsError> = OpenOptions::new()
+        .read(read || (!read && !write)) // Default to read if nothing specified.
+        .write(write)
+        .create(create && !create_new) // create_new overrides create.
+        .create_new(create_new)
+        .truncate(truncate)
+        .open(pathname);
+
+    match file_result {
+        Ok(file) => {
+            let fd: c_int = file.into_raw_fd();
+            ::syslog::trace!("open(): fd={}", fd);
+            fd
+        },
         Err(e) => {
             ::syslog::error!("open(): failed to open file (path={:?}, error={:?})", pathname, e);
             // Map hyperlight error to POSIX errno.
@@ -82,13 +122,13 @@ pub unsafe extern "C" fn open(path: *const c_char, flags: c_int, mode: mode_t) -
                 fs::FsError::NotAFile => ErrorCode::IsDirectory.get(),
                 fs::FsError::NotADirectory => ErrorCode::InvalidDirectory.get(),
                 fs::FsError::InvalidPath => ErrorCode::InvalidArgument.get(),
+                fs::FsError::ReadOnly => ErrorCode::ReadOnlyFileSystem.get(),
+                fs::FsError::AlreadyExists => ErrorCode::EntryExists.get(),
+                fs::FsError::NoSpace => ErrorCode::NoSpaceOnDevice.get(),
                 _ => ErrorCode::IoErr.get(),
             };
             *__errno_location() = errno;
-            return -1;
+            -1
         },
-    };
-    let fd: c_int = file.into_raw_fd();
-    ::syslog::trace!("open(): fd={}", fd);
-    fd
+    }
 }

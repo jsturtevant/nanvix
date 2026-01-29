@@ -377,10 +377,20 @@ impl LinuxDaemonMessage {
 //==================================================================================================
 
 pub fn init(base: usize, size: usize) {
+    #[cfg(feature = "syscall")]
+    ::syslog::trace!(
+        "syscall::init(): base={:#x}, size={:#x}",
+        base, size
+    );
+
     unsafe {
         if let Err(e) = hyperlight_guest::fs::init(base as *const u8, size as usize) {
             let reason: &str = "failed to initialize guest filesystem";
+            #[cfg(feature = "syscall")]
+            ::syslog::error!("syscall::init(): {reason}: {e}");
             panic!("parse_bootinfo(): {reason}: {e}");
         }
     }
+    #[cfg(feature = "syscall")]
+    ::syslog::trace!("syscall::init(): filesystem initialized successfully");
 }

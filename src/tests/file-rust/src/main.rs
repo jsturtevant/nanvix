@@ -21,6 +21,12 @@ extern crate alloc;
 extern crate libc_string;
 extern crate nvx;
 
+use ::hyperlight_guest::{
+    Read,
+    Seek,
+    SeekFrom,
+    Write,
+};
 use ::syslog::{
     error,
     info,
@@ -59,7 +65,7 @@ use ::syscall::unistd;
 #[unsafe(no_mangle)]
 pub fn main() -> Result<(), Error> {
     let guest_fs_manifest_base: usize = 0x0fa88000;
-    let guest_fs_manifest_size: usize = 0x00000058;
+    let guest_fs_manifest_size: usize = 0x00000098;
     info!(
         "guest_fs_manifest_base={:#x}, guest_fs_manifest_size={:#x}",
         guest_fs_manifest_base, guest_fs_manifest_size
@@ -257,6 +263,426 @@ pub fn main() -> Result<(), Error> {
         );
         panic!("uid/gid consistency check failed");
     }
+
+    // ==================== FAT Filesystem Tests ====================
+    // These tests use the /data FAT mount which is writable.
+    //
+    // NOTE: These tests are commented out becuase
+    // We use the hyperlight_guest::fs APIs directly instead of syscall bindings because
+    // the current syscall implementation doesn't support file descriptor allocation for FAT
+    // files. The hyperlight_guest fs module's FAT file wrapper doesn't provide a raw file
+    // descriptor (unlike ReadOnly files). A proper file descriptor table would need to be
+    // implemented to support open/read/write/close syscalls for FAT files.
+
+    // Test 16: Create directory on FAT mount using mkdir.
+    info!("Test 16: Testing mkdir on FAT mount");
+    let testdir_path: &[u8] = b"/data/testdir\0";
+    let testdir_ptr: *const c_char = testdir_path.as_ptr().cast::<c_char>();
+    let mkdir_result: i32 =
+        unsafe { syscall::sys::stat::bindings::mkdir::mkdir(testdir_ptr, 0o755) };
+    if mkdir_result != 0 {
+        error!("Test 16 FAILED: mkdir returned {}", mkdir_result);
+        panic!("mkdir failed");
+    }
+    info!("Test 16 PASSED: mkdir created /data/testdir");
+
+    // // Test 17: Create a file on FAT mount using open with O_CREAT.
+    // info!("Test 17: Testing open with O_CREAT on FAT mount");
+    // let testfile_path: &[u8] = b"/data/testfile.txt\0";
+    // let testfile_ptr: *const c_char = testfile_path.as_ptr().cast::<c_char>();
+    // // O_WRONLY | O_CREAT = 0x1 | 0x0200 = 0x0201
+    // let fat_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(testfile_ptr, 0x0201, 0o644) };
+    // if fat_fd < 0 {
+    //     error!("Test 17 FAILED: open with O_CREAT returned {}", fat_fd);
+    //     panic!("open O_CREAT failed");
+    // }
+    // info!("Test 17 PASSED: created /data/testfile.txt with fd={}", fat_fd);
+
+    // // Test 18: Write to FAT file.
+    // info!("Test 18: Testing write to FAT file");
+    // let write_data: &[u8] = b"Hello, FAT filesystem!";
+    // let write_result: i32 = unsafe {
+    //     syscall::unistd::bindings::write::write(
+    //         fat_fd,
+    //         write_data.as_ptr().cast::<c_void>(),
+    //         write_data.len() as u32,
+    //     )
+    // };
+    // if write_result <= 0 {
+    //     error!("Test 18 FAILED: write returned {}", write_result);
+    //     panic!("write to FAT file failed");
+    // }
+    // let bytes_written: usize = write_result as usize;
+    // if bytes_written != write_data.len() {
+    //     error!("Test 18 FAILED: write returned {} (expected {})", bytes_written, write_data.len());
+    //     panic!("partial write to FAT file");
+    // }
+    // info!("Test 18 PASSED: wrote {} bytes to FAT file", bytes_written);
+
+    // // Close the FAT file.
+    // let close_fat: i32 = syscall::unistd::bindings::close::close(fat_fd);
+    // if close_fat != 0 {
+    //     error!("Test 18 (close): close returned {}", close_fat);
+    //     panic!("close FAT file failed");
+    // }
+
+    // // Test 19: Read back the file we just wrote.
+    // info!("Test 19: Testing read from FAT file");
+    // // O_RDONLY = 0x0
+    // let fat_fd2: i32 = unsafe { syscall::fcntl::bindings::open::open(testfile_ptr, 0, 0) };
+    // if fat_fd2 < 0 {
+    //     error!("Test 19 FAILED: open for read returned {}", fat_fd2);
+    //     panic!("open FAT file for read failed");
+    // }
+    // let mut read_buf: [u8; 64] = [0; 64];
+    // let read_fat_result: i32 = unsafe {
+    //     syscall::unistd::bindings::read::read(
+    //         fat_fd2,
+    //         read_buf.as_mut_ptr().cast::<c_void>(),
+    //         read_buf.len() as u32,
+    //     )
+    // };
+    // if read_fat_result <= 0 {
+    //     error!("Test 19 FAILED: read returned {}", read_fat_result);
+    //     panic!("read from FAT file failed");
+    // }
+    // let bytes_read_fat: usize = read_fat_result as usize;
+    // if bytes_read_fat != write_data.len() {
+    //     error!("Test 19 FAILED: read {} bytes (expected {})", bytes_read_fat, write_data.len());
+    //     panic!("read wrong number of bytes");
+    // }
+    // if &read_buf[..bytes_read_fat] != write_data {
+    //     error!("Test 19 FAILED: data mismatch");
+    //     panic!("FAT file data mismatch");
+    // }
+    // info!("Test 19 PASSED: read back {} bytes, data matches", bytes_read_fat);
+    // let _: i32 = syscall::unistd::bindings::close::close(fat_fd2);
+
+    // // Test 20: Rename the file.
+    // info!("Test 20: Testing rename on FAT mount");
+    // let renamed_path: &[u8] = b"/data/renamed.txt\0";
+    // let renamed_ptr: *const c_char = renamed_path.as_ptr().cast::<c_char>();
+    // let rename_result: i32 =
+    //     unsafe { syscall::fcntl::bindings::rename::rename(testfile_ptr, renamed_ptr) };
+    // if rename_result != 0 {
+    //     error!("Test 20 FAILED: rename returned {}", rename_result);
+    //     panic!("rename failed");
+    // }
+    // info!("Test 20 PASSED: renamed file to /data/renamed.txt");
+
+    // // Verify the old name no longer exists.
+    // let old_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(testfile_ptr, 0, 0) };
+    // if old_fd >= 0 {
+    //     let _: i32 = syscall::unistd::bindings::close::close(old_fd);
+    //     error!("Test 20: old filename still exists after rename");
+    //     panic!("rename did not remove old name");
+    // }
+
+    // // Verify new name exists and has correct content.
+    // let new_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(renamed_ptr, 0, 0) };
+    // if new_fd < 0 {
+    //     error!("Test 20: cannot open renamed file");
+    //     panic!("renamed file not found");
+    // }
+    // let _: i32 = syscall::unistd::bindings::close::close(new_fd);
+    // info!("Test 20: verified renamed file exists");
+
+    // // Test 21: Unlink (delete) the file.
+    // info!("Test 21: Testing unlink on FAT mount");
+    // let unlink_result: i32 = unsafe { syscall::unistd::bindings::unlink::unlink(renamed_ptr) };
+    // if unlink_result != 0 {
+    //     error!("Test 21 FAILED: unlink returned {}", unlink_result);
+    //     panic!("unlink failed");
+    // }
+    // info!("Test 21 PASSED: unlinked /data/renamed.txt");
+
+    // // Verify the file is gone.
+    // let gone_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(renamed_ptr, 0, 0) };
+    // if gone_fd >= 0 {
+    //     let _: i32 = syscall::unistd::bindings::close::close(gone_fd);
+    //     error!("Test 21: file still exists after unlink");
+    //     panic!("unlink did not remove file");
+    // }
+
+    // ==================== FAT File I/O Tests Using Hyperlight APIs ====================
+    // These tests use hyperlight_guest::fs APIs directly to test FAT file operations.
+
+    // Test 17: Create and write a file on FAT mount using hyperlight_guest fs APIs.
+    info!("Test 17: Create and write file using hyperlight_guest fs APIs");
+    {
+        let test_content: &[u8] = b"Hello from Nanvix FAT test!\nThis is line 2.\n";
+        let test_file_path: &str = "/data/testdir/test_file.txt";
+
+        // Create and write to a new file on the FAT mount.
+        let file_result: Result<hyperlight_guest::fs::File, hyperlight_guest::fs::FsError> =
+            hyperlight_guest::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(test_file_path);
+
+        match file_result {
+            Ok(mut file) => {
+                let write_result: Result<usize, hyperlight_guest::fs::FsError> =
+                    file.write(test_content);
+                match write_result {
+                    Ok(bytes_written) => {
+                        info!(
+                            "Test 17 PASSED: wrote {} bytes to {}",
+                            bytes_written, test_file_path
+                        );
+                        // Flush to ensure data is written.
+                        if let Err(e) = file.flush() {
+                            error!("Test 17 WARNING: flush failed: {:?}", e);
+                        }
+                    },
+                    Err(e) => {
+                        error!("Test 17 FAILED: write failed: {:?}", e);
+                        panic!("FAT file write failed");
+                    },
+                }
+            },
+            Err(e) => {
+                error!("Test 17 FAILED: failed to create file: {:?}", e);
+                panic!("FAT file create failed");
+            },
+        }
+    }
+
+    // Test 18: Read the file back using hyperlight_guest fs APIs.
+    info!("Test 18: Read file using hyperlight_guest fs APIs");
+    {
+        let test_file_path: &str = "/data/testdir/test_file.txt";
+        let expected_content: &[u8] = b"Hello from Nanvix FAT test!\nThis is line 2.\n";
+
+        let file_result: Result<hyperlight_guest::fs::File, hyperlight_guest::fs::FsError> =
+            hyperlight_guest::fs::OpenOptions::new()
+                .read(true)
+                .open(test_file_path);
+
+        match file_result {
+            Ok(mut file) => {
+                let mut read_buf: [u8; 128] = [0u8; 128];
+                let read_result: Result<usize, hyperlight_guest::fs::FsError> =
+                    file.read(&mut read_buf);
+                match read_result {
+                    Ok(bytes_read) => {
+                        info!("Test 18: read {} bytes from {}", bytes_read, test_file_path);
+                        // Print content to stdout.
+                        unistd::write(STDOUT_FILENO, &read_buf[..bytes_read])?;
+                        // Verify content matches.
+                        if bytes_read == expected_content.len()
+                            && &read_buf[..bytes_read] == expected_content
+                        {
+                            info!("Test 18 PASSED: content matches expected");
+                        } else {
+                            error!(
+                                "Test 18 FAILED: content mismatch (read {} bytes, expected {})",
+                                bytes_read,
+                                expected_content.len()
+                            );
+                            panic!("FAT file content mismatch");
+                        }
+                    },
+                    Err(e) => {
+                        error!("Test 18 FAILED: read failed: {:?}", e);
+                        panic!("FAT file read failed");
+                    },
+                }
+            },
+            Err(e) => {
+                error!("Test 18 FAILED: failed to open file for reading: {:?}", e);
+                panic!("FAT file open for read failed");
+            },
+        }
+    }
+
+    // Test 19: Test seek operations on FAT file.
+    info!("Test 19: Test seek operations on FAT file");
+    {
+        let test_file_path: &str = "/data/testdir/test_file.txt";
+
+        let file_result: Result<hyperlight_guest::fs::File, hyperlight_guest::fs::FsError> =
+            hyperlight_guest::fs::OpenOptions::new()
+                .read(true)
+                .open(test_file_path);
+
+        match file_result {
+            Ok(mut file) => {
+                // Seek to end to get file size.
+                let seek_end_result: Result<u64, hyperlight_guest::fs::FsError> =
+                    file.seek(SeekFrom::End(0));
+                match seek_end_result {
+                    Ok(file_size) => {
+                        info!("Test 19: file size = {} bytes", file_size);
+
+                        // Seek back to beginning.
+                        let seek_start_result: Result<u64, hyperlight_guest::fs::FsError> =
+                            file.seek(SeekFrom::Start(0));
+                        match seek_start_result {
+                            Ok(pos) => {
+                                if pos == 0 {
+                                    info!("Test 19 PASSED: seek operations work correctly");
+                                } else {
+                                    error!(
+                                        "Test 19 FAILED: seek to start returned {} (expected 0)",
+                                        pos
+                                    );
+                                }
+                            },
+                            Err(e) => {
+                                error!("Test 19 FAILED: seek to start failed: {:?}", e);
+                            },
+                        }
+                    },
+                    Err(e) => {
+                        error!("Test 19 FAILED: seek to end failed: {:?}", e);
+                    },
+                }
+            },
+            Err(e) => {
+                error!("Test 19 FAILED: failed to open file for seek test: {:?}", e);
+            },
+        }
+    }
+
+    // Test 20: Append to existing file.
+    info!("Test 20: Append to existing FAT file");
+    {
+        let test_file_path: &str = "/data/testdir/test_file.txt";
+        let append_content: &[u8] = b"Appended line 3.\n";
+
+        // Open for read+write to append.
+        let file_result: Result<hyperlight_guest::fs::File, hyperlight_guest::fs::FsError> =
+            hyperlight_guest::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(test_file_path);
+
+        match file_result {
+            Ok(mut file) => {
+                // Seek to end.
+                if let Err(e) = file.seek(SeekFrom::End(0)) {
+                    error!("Test 20 FAILED: seek to end failed: {:?}", e);
+                    panic!("seek failed");
+                }
+
+                // Write appended content.
+                let write_result: Result<usize, hyperlight_guest::fs::FsError> =
+                    file.write(append_content);
+                match write_result {
+                    Ok(bytes_written) => {
+                        info!("Test 20 PASSED: appended {} bytes", bytes_written);
+                        let _: Result<(), hyperlight_guest::fs::FsError> = file.flush();
+                    },
+                    Err(e) => {
+                        error!("Test 20 FAILED: append write failed: {:?}", e);
+                        panic!("append failed");
+                    },
+                }
+            },
+            Err(e) => {
+                error!("Test 20 FAILED: failed to open file for append: {:?}", e);
+                panic!("open for append failed");
+            },
+        }
+    }
+
+    // Test 21: Verify appended content.
+    info!("Test 21: Verify appended content");
+    {
+        let test_file_path: &str = "/data/testdir/test_file.txt";
+        let expected_full_content: &[u8] =
+            b"Hello from Nanvix FAT test!\nThis is line 2.\nAppended line 3.\n";
+
+        let file_result: Result<hyperlight_guest::fs::File, hyperlight_guest::fs::FsError> =
+            hyperlight_guest::fs::OpenOptions::new()
+                .read(true)
+                .open(test_file_path);
+
+        match file_result {
+            Ok(mut file) => {
+                let mut read_buf: [u8; 256] = [0u8; 256];
+                let read_result: Result<usize, hyperlight_guest::fs::FsError> =
+                    file.read(&mut read_buf);
+                match read_result {
+                    Ok(bytes_read) => {
+                        // Print content to stdout.
+                        unistd::write(STDOUT_FILENO, &read_buf[..bytes_read])?;
+                        if bytes_read == expected_full_content.len()
+                            && &read_buf[..bytes_read] == expected_full_content
+                        {
+                            info!("Test 21 PASSED: full content verified ({} bytes)", bytes_read);
+                        } else {
+                            error!(
+                                "Test 21 FAILED: content mismatch (read {} bytes, expected {})",
+                                bytes_read,
+                                expected_full_content.len()
+                            );
+                            // Print what we got for debugging.
+                            if let Ok(s) = core::str::from_utf8(&read_buf[..bytes_read]) {
+                                error!("Got: {:?}", s);
+                            }
+                            panic!("content verification failed");
+                        }
+                    },
+                    Err(e) => {
+                        error!("Test 21 FAILED: read failed: {:?}", e);
+                        panic!("read failed");
+                    },
+                }
+            },
+            Err(e) => {
+                error!("Test 21 FAILED: failed to open file: {:?}", e);
+                panic!("open failed");
+            },
+        }
+    }
+
+    // Test 24: Test that write to read-only file returns EROFS.
+    info!("Test 24: Testing write to read-only file");
+    let ro_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(pathname, 0, 0) };
+    if ro_fd >= 0 {
+        let test_write_data: &[u8] = b"test write data";
+        let ro_write_result: i32 = unsafe {
+            syscall::unistd::bindings::write::write(
+                ro_fd,
+                test_write_data.as_ptr().cast::<c_void>(),
+                test_write_data.len() as u32,
+            )
+        };
+        if ro_write_result >= 0 {
+            error!("Test 24 FAILED: write to read-only file succeeded ({} bytes)", ro_write_result);
+            panic!("write to read-only file should fail");
+        }
+        info!(
+            "Test 24 PASSED: write to read-only file returned {} (expected error)",
+            ro_write_result
+        );
+        let _: i32 = syscall::unistd::bindings::close::close(ro_fd);
+    } else {
+        error!("Test 24 FAILED: could not open file for read-only test");
+        panic!("open failed for read-only test");
+    }
+
+    // Test 22: Unlink (delete) the test file before removing the directory.
+    info!("Test 22: Testing unlink on FAT mount");
+    let testfile_path: &[u8] = b"/data/testdir/test_file.txt\0";
+    let testfile_ptr: *const c_char = testfile_path.as_ptr().cast::<c_char>();
+    let unlink_result: i32 = unsafe { syscall::unistd::bindings::unlink::unlink(testfile_ptr) };
+    if unlink_result != 0 {
+        error!("Test 22 FAILED: unlink returned {}", unlink_result);
+        panic!("unlink failed");
+    }
+    info!("Test 22 PASSED: unlinked /data/testdir/test_file.txt");
+
+    // Test 23: Remove the directory we created.
+    info!("Test 23: Testing rmdir on FAT mount");
+    let rmdir_result: i32 = unsafe { syscall::unistd::bindings::rmdir::rmdir(testdir_ptr) };
+    if rmdir_result != 0 {
+        error!("Test 23 FAILED: rmdir returned {}", rmdir_result);
+        panic!("rmdir failed");
+    }
+    info!("Test 23 PASSED: removed /data/testdir");
 
     // Print file contents (full read test).
     info!("Reading full file contents:");

@@ -9,9 +9,12 @@ use crate::errno::__errno_location;
 use ::core::ffi::CStr;
 use ::hyperlight_guest::fs;
 use ::sys::error::ErrorCode;
-use ::sysapi::ffi::{
-    c_char,
-    c_int,
+use ::sysapi::{
+    ffi::{
+        c_char,
+        c_int,
+    },
+    sys_types::mode_t,
 };
 
 //==================================================================================================
@@ -21,11 +24,12 @@ use ::sysapi::ffi::{
 ///
 /// # Description
 ///
-/// Removes an empty directory.
+/// Creates a new directory with the specified pathname.
 ///
 /// # Parameters
 ///
-/// - `path`: Path to the directory to remove.
+/// - `pathname`: Path to the directory to create.
+/// - `mode`: Permission bits for the new directory (currently ignored).
 ///
 /// # Returns
 ///
@@ -36,57 +40,52 @@ use ::sysapi::ffi::{
 ///
 /// This function is unsafe because it dereferences a raw pointer.
 ///
-/// It is safe to call this function if `path` points to a valid null-terminated C string.
+/// It is safe to call this function if `pathname` points to a valid null-terminated C string.
 ///
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rmdir(path: *const c_char) -> c_int {
-    ::syslog::trace!("rmdir(): path={path:?}");
+pub unsafe extern "C" fn mkdir(pathname: *const c_char, _mode: mode_t) -> c_int {
+    ::syslog::trace!("mkdir(): pathname={pathname:?}");
 
-    // Check if path is null.
-    if path.is_null() {
-        ::syslog::error!("rmdir(): path is null");
+    // Check if pathname is null.
+    if pathname.is_null() {
+        ::syslog::error!("mkdir(): pathname is null");
         *__errno_location() = ErrorCode::InvalidArgument.get();
         return -1;
     }
 
-    // Convert path to str.
-    let path_str: &str = match CStr::from_ptr(path).to_str() {
+    // Convert pathname to str.
+    let pathname_str: &str = match CStr::from_ptr(pathname).to_str() {
         Ok(s) => s,
         Err(_) => {
-            ::syslog::error!("rmdir(): invalid path");
+            ::syslog::error!("mkdir(): invalid pathname");
             *__errno_location() = ErrorCode::InvalidArgument.get();
             return -1;
         },
     };
 
-    // Remove directory via Hyperlight guest filesystem.
-    match fs::rmdir(path_str) {
+    // Create directory via Hyperlight guest filesystem.
+    match fs::mkdir(pathname_str) {
         Ok(()) => {
-            ::syslog::trace!("rmdir(): success (path={path_str:?})");
+            ::syslog::trace!("mkdir(): success (pathname={pathname_str:?})");
             0
         },
         Err(fs::FsError::ReadOnly) => {
-            ::syslog::error!("rmdir(): read-only file system (path={path_str:?})");
+            ::syslog::error!("mkdir(): read-only file system (pathname={pathname_str:?})");
             *__errno_location() = ErrorCode::ReadOnlyFileSystem.get();
             -1
         },
+        Err(fs::FsError::AlreadyExists) => {
+            ::syslog::error!("mkdir(): directory already exists (pathname={pathname_str:?})");
+            *__errno_location() = ErrorCode::EntryExists.get();
+            -1
+        },
         Err(fs::FsError::NotFound) => {
-            ::syslog::error!("rmdir(): directory not found (path={path_str:?})");
+            ::syslog::error!("mkdir(): parent directory not found (pathname={pathname_str:?})");
             *__errno_location() = ErrorCode::NoSuchEntry.get();
             -1
         },
-        Err(fs::FsError::NotEmpty) => {
-            ::syslog::error!("rmdir(): directory not empty (path={path_str:?})");
-            *__errno_location() = ErrorCode::DirectoryNotEmpty.get();
-            -1
-        },
-        Err(fs::FsError::NotADirectory) => {
-            ::syslog::error!("rmdir(): not a directory (path={path_str:?})");
-            *__errno_location() = ErrorCode::InvalidDirectory.get();
-            -1
-        },
         Err(e) => {
-            ::syslog::error!("rmdir(): {e:?} (path={path_str:?})");
+            ::syslog::error!("mkdir(): {e:?} (pathname={pathname_str:?})");
             *__errno_location() = ErrorCode::IoErr.get();
             -1
         },
