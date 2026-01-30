@@ -50,6 +50,10 @@ pub struct SandboxCacheConfig<T> {
     hwloc: Option<HwLoc>,
     /// Optional ramfs image to attach to every user VM.
     ramfs_filename: Option<String>,
+    /// Host-to-guest filesystem mounts: (host_path, guest_path) pairs.
+    mounts: Vec<(String, String)>,
+    /// Pre-built FAT images to mount: (host_fat_path, mount_point) pairs.
+    fat_images: Vec<(String, String)>,
     /// Number of network namespaces to prefill in the pool (0 enables lazy initialization).
     netns_pool_size: usize,
     /// Path to kernel binary.
@@ -120,6 +124,8 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
         console_file: Option<String>,
         hwloc: Option<HwLoc>,
         ramfs_filename: Option<String>,
+        mounts: Vec<(String, String)>,
+        fat_images: Vec<(String, String)>,
         netns_pool_size: usize,
         kernel_binary_path: &str,
         #[cfg(not(feature = "single-process"))] linuxd_binary_path: &str,
@@ -140,6 +146,8 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
             console_file,
             hwloc,
             ramfs_filename,
+            mounts,
+            fat_images,
             netns_pool_size,
             kernel_binary_path: kernel_binary_path.to_string(),
             #[cfg(not(feature = "single-process"))]
@@ -368,5 +376,31 @@ impl<T: Sync + Send + Default + 'static> SandboxCacheConfig<T> {
     ///
     pub fn tmp_directory(&self) -> &str {
         &self.tmp_directory
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the host-to-guest filesystem mounts.
+    ///
+    /// # Returns
+    ///
+    /// A slice of (host_path, guest_path) pairs representing filesystem mounts.
+    ///
+    pub fn mounts(&self) -> &[(String, String)] {
+        &self.mounts
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the pre-built FAT images.
+    ///
+    /// # Returns
+    ///
+    /// A slice of (host_fat_path, mount_point) pairs representing FAT images to mount.
+    ///
+    pub fn fat_images(&self) -> &[(String, String)] {
+        &self.fat_images
     }
 }

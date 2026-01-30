@@ -50,6 +50,11 @@ pub struct UserVmArgs {
     log_directory: String,
     /// Unique identifier for this User VM instance.
     uservm_id: UserVmIdentifier,
+    /// Mount points to map host paths into the guest filesystem.
+    /// Each tuple contains (host_path, guest_path).
+    mounts: Vec<(String, String)>,
+    /// Pre-built FAT images to mount: (host_fat_path, mount_point) pairs.
+    fat_images: Vec<(String, String)>,
 }
 
 //==================================================================================================
@@ -75,6 +80,8 @@ impl UserVmArgs {
     /// - `uservm_binary_path`: Path to the User VM binary (only if not in single-process mode).
     /// - `log_directory`: Path to the log directory.
     /// - `uservm_id`: Unique identifier for this User VM instance.
+    /// - `mounts`: Mount points to map host paths into the guest filesystem.
+    /// - `fat_images`: Pre-built FAT images to mount.
     ///
     /// # Returns
     ///
@@ -94,6 +101,8 @@ impl UserVmArgs {
         #[cfg(not(feature = "single-process"))] uservm_binary_path: String,
         log_directory: String,
         uservm_id: UserVmIdentifier,
+        mounts: Vec<(String, String)>,
+        fat_images: Vec<(String, String)>,
     ) -> Self {
         Self {
             control_plane_connect_socket_info,
@@ -109,6 +118,8 @@ impl UserVmArgs {
             uservm_binary_path,
             log_directory,
             uservm_id,
+            mounts,
+            fat_images,
         }
     }
 
@@ -267,5 +278,31 @@ impl UserVmArgs {
     ///
     pub fn uservm_id(&self) -> UserVmIdentifier {
         self.uservm_id
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns a reference to the mount points.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the vector of mount points (host_path, guest_path).
+    ///
+    pub fn mounts(&self) -> &[(String, String)] {
+        &self.mounts
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns a reference to the pre-built FAT images.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the vector of FAT images (host_fat_path, mount_point).
+    ///
+    pub fn fat_images(&self) -> &[(String, String)] {
+        &self.fat_images
     }
 }

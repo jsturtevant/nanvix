@@ -147,6 +147,18 @@ impl UserVm {
             user_vm_args.push(stderr_file.to_string());
         }
 
+        // Add mount mappings.
+        for (host_path, guest_path) in args.mounts() {
+            user_vm_args.push(::uservm::args::Args::OPT_MOUNT.to_string());
+            user_vm_args.push(format!("{host_path}:{guest_path}"));
+        }
+
+        // Add pre-built FAT images.
+        for (fat_path, mount_point) in args.fat_images() {
+            user_vm_args.push(::uservm::args::Args::OPT_FAT.to_string());
+            user_vm_args.push(format!("{fat_path}:{mount_point}"));
+        }
+
         if let Some(hwloc) = args.hwloc() {
             let taskset: Vec<String> = vec![
                 "taskset".to_string(),

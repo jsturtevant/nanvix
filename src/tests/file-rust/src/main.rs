@@ -65,7 +65,7 @@ use ::syscall::unistd;
 #[unsafe(no_mangle)]
 pub fn main() -> Result<(), Error> {
     let guest_fs_manifest_base: usize = 0x0fa7f000;
-    let guest_fs_manifest_size: usize = 0x00000098;
+    let guest_fs_manifest_size: usize = 0x00000058;
     info!(
         "guest_fs_manifest_base={:#x}, guest_fs_manifest_size={:#x}",
         guest_fs_manifest_base, guest_fs_manifest_size
@@ -601,8 +601,7 @@ pub fn main() -> Result<(), Error> {
 
     // Test 27: Test closedir.
     info!("Test 27: Testing closedir");
-    let closedir_result: i32 =
-        unsafe { syscall::dirent::bindings::closedir::closedir(dir_handle) };
+    let closedir_result: i32 = unsafe { syscall::dirent::bindings::closedir::closedir(dir_handle) };
     if closedir_result != 0 {
         error!("Test 27 FAILED: closedir returned {}", closedir_result);
         panic!("closedir failed");
@@ -658,9 +657,8 @@ pub fn main() -> Result<(), Error> {
     let at_fdcwd: i32 = -100; // AT_FDCWD value.
     let relative_path: &[u8] = b"README.md\0";
     let relative_path_ptr: *const c_char = relative_path.as_ptr().cast::<c_char>();
-    let openat_fd: i32 = unsafe {
-        syscall::fcntl::bindings::openat::openat(at_fdcwd, relative_path_ptr, 0, 0)
-    };
+    let openat_fd: i32 =
+        unsafe { syscall::fcntl::bindings::openat::openat(at_fdcwd, relative_path_ptr, 0, 0) };
     if openat_fd < 0 {
         error!("Test 30 FAILED: openat with AT_FDCWD returned {}", openat_fd);
         panic!("openat AT_FDCWD failed");

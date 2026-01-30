@@ -114,6 +114,8 @@ impl<T: Send + Sync + Default + 'static> InitializedSandbox<T> {
         let hwloc: Option<hwloc::HwLoc> = self.sandbox_config.hwloc();
         let log_directory: String = self.sandbox_config.log_directory().to_string();
         let uservm_id: ::user_vm_api::UserVmIdentifier = self.sandbox_config.uservm_id();
+        let mounts: Vec<(String, String)> = self.sandbox_config.mounts().to_vec();
+        let fat_images: Vec<(String, String)> = self.sandbox_config.fat_images().to_vec();
         #[cfg(not(feature = "single-process"))]
         let uservm_binary_path: String = self.sandbox_config.uservm_binary_path().to_string();
 
@@ -147,6 +149,8 @@ impl<T: Send + Sync + Default + 'static> InitializedSandbox<T> {
                     uservm_binary_path,
                     log_directory,
                     uservm_id,
+                    mounts,
+                    fat_images,
                 ),
                 // Pass a mutable reference to the unique control-plane listener socket to accept
                 // one connection from the new user VM.

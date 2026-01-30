@@ -131,6 +131,8 @@ impl UserVm {
         let ramfs_filename: Option<String> = args.ramfs_filename().map(|s| s.to_string());
         let stderr_file: Option<String> = args.console_file().map(|s| s.to_string());
         let user_vm_id: UserVmIdentifier = args.uservm_id();
+        let mounts: Vec<(String, String)> = args.mounts().to_vec();
+        let fat_images: Vec<(String, String)> = args.fat_images().to_vec();
         let control_plane_connect_sockaddr_type: String = args
             .control_plane_connect_socket_info()
             .1
@@ -274,6 +276,8 @@ impl UserVm {
                         io_control_rx,
                         io_control_tx,
                         counters,
+                        mounts,
+                        fat_images,
                     });
 
                 // Wait for VMM thread to finish.

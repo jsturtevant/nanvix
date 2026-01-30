@@ -153,6 +153,10 @@ pub struct UserVmArgs {
     pub initrd_args: Option<String>,
     /// Optional path to a ramfs image exposed to the guest (hyperlight only).
     pub ramfs_filename: Option<String>,
+    /// Host-to-guest filesystem mounts: (host_path, guest_path) pairs.
+    pub mounts: Vec<(String, String)>,
+    /// Pre-built FAT images to mount: (host_fat_path, mount_point) pairs.
+    pub fat_images: Vec<(String, String)>,
     /// Optional path to a file used to capture the guest's stderr stream.
     pub stderr: Option<String>,
     /// Channel used to forward port-I/O writes from the guest to the Linux daemon.
@@ -256,6 +260,8 @@ impl UserVm {
             initrd_filename: args.initrd_filename.clone(),
             initrd_args: args.initrd_args.clone(),
             ramfs_filename: args.ramfs_filename.clone(),
+            mounts: args.mounts.clone(),
+            fat_images: args.fat_images.clone(),
         })?;
 
         let vmem: Arc<Mutex<VirtualMemory>> = microvm.vmem();

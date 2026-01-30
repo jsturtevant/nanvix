@@ -54,6 +54,10 @@ pub struct Args {
     hwloc: Option<HwLoc>,
     /// Optional ramfs image to attach to the guest filesystem.
     ramfs_filename: Option<String>,
+    /// Host-to-guest filesystem mounts: (host_path, guest_path) pairs.
+    mounts: Vec<(String, String)>,
+    /// Pre-built FAT images to mount: (host_fat_path, mount_point) pairs.
+    fat_images: Vec<(String, String)>,
     /// Number of network namespaces to prefill in the pool (0 enables lazy initialization).
     netns_pool_size: usize,
     /// Directory path for writing log files when log_to_file is enabled.
@@ -97,6 +101,10 @@ impl Args {
     pub const OPT_LOG_DIRECTORY: &'static str = "-log-dir";
     /// Command-line option that attaches an additional RAM filesystem image.
     pub const OPT_RAMFS: &'static str = "-ramfs";
+    /// Command-line option that mounts host files/directories into the guest filesystem.
+    pub const OPT_MOUNT: &'static str = "-mount";
+    /// Command-line option that mounts pre-built FAT images into the guest filesystem.
+    pub const OPT_FAT: &'static str = "-fat";
     /// Command-line option that sets the network namespace pool size.
     pub const OPT_NETNS_POOL_SIZE: &'static str = "-netns-pool-size";
     /// Default netns pool size for prefill mode.
@@ -143,6 +151,8 @@ impl Args {
         ));
         let mut hwloc: Option<HwLoc> = None;
         let mut ramfs_filename: Option<String> = None;
+        let mut mounts: Vec<(String, String)> = Vec::new();
+        let mut fat_images: Vec<(String, String)> = Vec::new();
         let mut netns_pool_size: usize = Self::DEFAULT_NETNS_POOL_SIZE;
         let mut log_directory: String = DEFAULT_LOG_DIRECTORY.to_string();
         let mut l2: bool = false;
@@ -178,6 +188,86 @@ impl Args {
                 Self::OPT_RAMFS => {
                     i += 1;
                     ramfs_filename = Some(args[i].clone());
+                },
+                Self::OPT_MOUNT => {
+                    i += 1;
+                    let mount_arg: &str = &args[i];
+                    // Split on first colon to get host:guest pair.
+                    let parts: Vec<&str> = mount_arg.splitn(2, ':').collect();
+                    if parts.len() != 2 {
+                        return Err(anyhow::anyhow!(
+                            "invalid mount format (expected host:guest, got {})",
+                            mount_arg
+                        ));
+                    }
+                    let host_path: &str = parts[0];
+                    let guest_path: &str = parts[1];
+                    // Validate guest path starts with '/'.
+                    if !guest_path.starts_with('/') {
+                        return Err(anyhow::anyhow!(
+                            "guest path must be absolute (start with '/'), got {}",
+                            guest_path
+                        ));
+                    }
+                    // Canonicalize host path.
+                    let canonical_host: std::path::PathBuf = std::fs::canonicalize(host_path)
+                        .map_err(|error| {
+                            anyhow::anyhow!(
+                                "failed to canonicalize mount host path (path={}, error={})",
+                                host_path,
+                                error
+                            )
+                        })?;
+                    let canonical_host_str: String = canonical_host
+                        .to_str()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "mount host path is not valid UTF-8 (path={})",
+                                canonical_host.display()
+                            )
+                        })?
+                        .to_string();
+                    mounts.push((canonical_host_str, guest_path.to_string()));
+                },
+                Self::OPT_FAT => {
+                    i += 1;
+                    let fat_arg: &str = &args[i];
+                    // Split on first colon to get host_fat_path:mount_point pair.
+                    let parts: Vec<&str> = fat_arg.splitn(2, ':').collect();
+                    if parts.len() != 2 {
+                        return Err(anyhow::anyhow!(
+                            "invalid fat format (expected host_fat_path:mount_point, got {})",
+                            fat_arg
+                        ));
+                    }
+                    let host_fat_path: &str = parts[0];
+                    let mount_point: &str = parts[1];
+                    // Validate mount point starts with '/'.
+                    if !mount_point.starts_with('/') {
+                        return Err(anyhow::anyhow!(
+                            "mount point must be absolute (start with '/'), got {}",
+                            mount_point
+                        ));
+                    }
+                    // Canonicalize host FAT path.
+                    let canonical_fat: std::path::PathBuf = std::fs::canonicalize(host_fat_path)
+                        .map_err(|error| {
+                            anyhow::anyhow!(
+                                "failed to canonicalize FAT image path (path={}, error={})",
+                                host_fat_path,
+                                error
+                            )
+                        })?;
+                    let canonical_fat_str: String = canonical_fat
+                        .to_str()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "FAT image path is not valid UTF-8 (path={})",
+                                canonical_fat.display()
+                            )
+                        })?
+                        .to_string();
+                    fat_images.push((canonical_fat_str, mount_point.to_string()));
                 },
                 Self::OPT_HTTP_SOCKADDR => {
                     i += 1;
@@ -308,6 +398,8 @@ impl Args {
             console_file,
             hwloc,
             ramfs_filename,
+            mounts,
+            fat_images,
             netns_pool_size,
             log_directory,
             l2,
@@ -349,6 +441,10 @@ Options:
   {log_dir} <log_dir>                       Directory for log files (Default: \
              {DEFAULT_LOG_DIRECTORY}).
     {ramfs} <ramfs.img>                       Optional ramfs image to mount inside the guest.
+  {mount} <host:guest>                      Mount host file/directory into guest filesystem \
+             (repeatable).
+  {fat} <fat_path:mount_point>              Mount pre-built FAT image into guest filesystem \
+             (repeatable).
   {netns_pool_size} <size>                  Netns pool prefill size (Default: \
              {default_netns_pool_size}; 0 enables lazy initialization).
   {control_plane_socket_type} <socket_type> Socket type for control plane communication (nanvixd \
@@ -369,6 +465,8 @@ Options:
             hwloc = Self::OPT_HWLOC,
             log_dir = Self::OPT_LOG_DIRECTORY,
             ramfs = Self::OPT_RAMFS,
+            mount = Self::OPT_MOUNT,
+            fat = Self::OPT_FAT,
             netns_pool_size = Self::OPT_NETNS_POOL_SIZE,
             default_netns_pool_size = Self::DEFAULT_NETNS_POOL_SIZE,
             control_plane_socket_type = Self::OPT_CONTROL_PLANE_SOCKET_TYPE,
@@ -468,6 +566,32 @@ Options:
     ///
     pub fn ramfs_filename(&self) -> Option<&str> {
         self.ramfs_filename.as_deref()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the host-to-guest filesystem mounts.
+    ///
+    /// # Returns
+    ///
+    /// A slice of (host_path, guest_path) pairs representing filesystem mounts.
+    ///
+    pub fn mounts(&self) -> &[(String, String)] {
+        &self.mounts
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the pre-built FAT images.
+    ///
+    /// # Returns
+    ///
+    /// A slice of (host_fat_path, mount_point) pairs representing FAT images to mount.
+    ///
+    pub fn fat_images(&self) -> &[(String, String)] {
+        &self.fat_images
     }
 
     ///

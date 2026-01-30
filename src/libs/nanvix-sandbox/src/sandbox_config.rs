@@ -87,6 +87,13 @@ pub struct SandboxConfig<T> {
     /// Optional path to the snapshot used to deploy an L2 VM.
     l2_snapshot_path: Option<String>,
 
+    /// Mount points to map host paths into the guest filesystem.
+    /// Each tuple contains (host_path, guest_path).
+    mounts: Vec<(String, String)>,
+
+    /// Pre-built FAT images to mount: (host_fat_path, mount_point) pairs.
+    fat_images: Vec<(String, String)>,
+
     /// Phantom data to maintain the generic type parameter `T` in the structure.
     /// This is required because `T` is only used in single-process mode for the syscall table.
     #[cfg(not(feature = "single-process"))]
@@ -122,6 +129,8 @@ impl<T> SandboxConfig<T> {
     /// - `tmp_directory`: Optional path to the temporary directory.
     /// - `l2`: Optional flag to deploy the Linux Daemon inside an L2 VM.
     /// - `l2_snapshot_path`: Optional path to the L2 VM's snapshot.
+    /// - `mounts`: Mount points to map host paths into the guest filesystem.
+    /// - `fat_images`: Pre-built FAT images to mount.
     ///
     /// # Returns
     ///
@@ -148,6 +157,8 @@ impl<T> SandboxConfig<T> {
         tmp_directory: Option<String>,
         l2: Option<bool>,
         l2_snapshot_path: Option<String>,
+        mounts: Vec<(String, String)>,
+        fat_images: Vec<(String, String)>,
     ) -> Self {
         Self {
             uservm_id,
@@ -170,6 +181,8 @@ impl<T> SandboxConfig<T> {
             tmp_directory,
             l2,
             l2_snapshot_path,
+            mounts,
+            fat_images,
             #[cfg(not(feature = "single-process"))]
             _phantom: PhantomData,
         }
@@ -397,6 +410,32 @@ impl<T> SandboxConfig<T> {
     ///
     pub fn l2_snapshot_path(&self) -> Option<&str> {
         self.l2_snapshot_path.as_deref()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns a reference to the mount points.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the vector of mount points (host_path, guest_path).
+    ///
+    pub fn mounts(&self) -> &[(String, String)] {
+        &self.mounts
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns a reference to the pre-built FAT images.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the vector of FAT images (host_fat_path, mount_point).
+    ///
+    pub fn fat_images(&self) -> &[(String, String)] {
+        &self.fat_images
     }
 
     ///

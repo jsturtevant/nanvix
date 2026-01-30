@@ -82,6 +82,8 @@ pub async fn main() -> Result<ExitCode> {
     let initrd_filename: Option<String> = args.initrd_filename();
     let initrd_args: Option<String> = args.initrd_args();
     let ramfs_filename: Option<String> = args.ramfs_filename();
+    let mounts: Vec<(String, String)> = args.take_mounts();
+    let fat_images: Vec<(String, String)> = args.take_fat_images();
     let memory_size: usize = args.memory_size();
     let stderr: Option<String> = args.take_vm_stderr();
     let user_vm_id: UserVmIdentifier = args.user_vm_id();
@@ -241,6 +243,8 @@ pub async fn main() -> Result<ExitCode> {
         initrd_filename,
         initrd_args,
         ramfs_filename,
+        mounts,
+        fat_images,
         stderr,
         vcpu_thread_stdout_tx,
         memory_thread_data_rx,

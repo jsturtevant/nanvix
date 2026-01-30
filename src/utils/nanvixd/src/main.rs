@@ -154,6 +154,8 @@ pub async fn main() -> Result<()> {
         args.console_file().clone(),
         args.hwloc().clone(),
         args.ramfs_filename().map(|s| s.to_string()),
+        args.mounts().to_vec(),
+        args.fat_images().to_vec(),
         args.netns_pool_size(),
         &kernel_binary_path,
         #[cfg(not(feature = "single-process"))]

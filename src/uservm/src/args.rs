@@ -44,6 +44,10 @@ pub struct Args {
     initrd_args: Option<String>,
     /// Optional ramfs image filename to expose to the guest.
     ramfs_filename: Option<String>,
+    /// Host-to-guest filesystem mounts: (host_path, guest_path) pairs.
+    mounts: Vec<(String, String)>,
+    /// Pre-built FAT images to mount: (host_fat_path, mount_point) pairs.
+    fat_images: Vec<(String, String)>,
     /// Memory size.
     memory_size: usize,
     /// Standard error.
@@ -83,6 +87,10 @@ impl Args {
     pub const OPT_MEMORY_SIZE: &'static str = "-memory";
     /// Command-line option for the ramfs file.
     pub const OPT_RAMFS: &'static str = "-ramfs";
+    /// Command-line option for mounting host files/directories into the guest filesystem.
+    pub const OPT_MOUNT: &'static str = "-mount";
+    /// Command-line option for mounting pre-built FAT images into the guest filesystem.
+    pub const OPT_FAT: &'static str = "-fat";
     /// Command-line option for the standard error.
     pub const OPT_STDERR: &'static str = "-stderr";
     /// Command-line option for system VM address.
@@ -129,6 +137,8 @@ impl Args {
         let mut initrd_filename: Option<String> = None;
         let mut initrd_args: Option<String> = None;
         let mut ramfs_filename: Option<String> = None;
+        let mut mounts: Vec<(String, String)> = Vec::new();
+        let mut fat_images: Vec<(String, String)> = Vec::new();
         let mut memory_size: usize = ::config::kernel::MEMORY_SIZE;
         let mut vm_stderr: Option<String> = None;
         let mut system_vm_addr: String = String::new();
@@ -187,6 +197,97 @@ impl Args {
                         })?;
 
                     ramfs_filename = Some(canonical_str.to_string());
+                    i += 1;
+                },
+                // Set mount mapping (host:guest).
+                Self::OPT_MOUNT if i + 1 < args.len() => {
+                    let mount_arg: &String = &args[i + 1];
+
+                    // Split on first colon to get host:guest pair.
+                    let parts: Vec<&str> = mount_arg.splitn(2, ':').collect();
+                    if parts.len() != 2 {
+                        anyhow::bail!(
+                            "invalid mount format (expected host:guest, got {})",
+                            mount_arg
+                        );
+                    }
+
+                    let host_path: &str = parts[0];
+                    let guest_path: &str = parts[1];
+
+                    // Validate guest path starts with '/'.
+                    if !guest_path.starts_with('/') {
+                        anyhow::bail!(
+                            "guest path must be absolute (start with '/'), got {}",
+                            guest_path
+                        );
+                    }
+
+                    // Canonicalize host path.
+                    let canonical_host: PathBuf = fs::canonicalize(host_path).map_err(|error| {
+                        anyhow::anyhow!(
+                            "failed to canonicalize mount host path (path={}, error={error})",
+                            host_path
+                        )
+                    })?;
+
+                    let canonical_host_str: String = canonical_host
+                        .to_str()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "mount host path is not valid UTF-8 (path={})",
+                                canonical_host.display()
+                            )
+                        })?
+                        .to_string();
+
+                    mounts.push((canonical_host_str, guest_path.to_string()));
+                    i += 1;
+                },
+                // Set pre-built FAT image (host_fat_path:mount_point).
+                Self::OPT_FAT if i + 1 < args.len() => {
+                    let fat_arg: &String = &args[i + 1];
+
+                    // Split on first colon to get host_fat_path:mount_point pair.
+                    let parts: Vec<&str> = fat_arg.splitn(2, ':').collect();
+                    if parts.len() != 2 {
+                        anyhow::bail!(
+                            "invalid fat format (expected host_fat_path:mount_point, got {})",
+                            fat_arg
+                        );
+                    }
+
+                    let host_fat_path: &str = parts[0];
+                    let mount_point: &str = parts[1];
+
+                    // Validate mount point starts with '/'.
+                    if !mount_point.starts_with('/') {
+                        anyhow::bail!(
+                            "mount point must be absolute (start with '/'), got {}",
+                            mount_point
+                        );
+                    }
+
+                    // Canonicalize host FAT path.
+                    let canonical_fat: PathBuf =
+                        fs::canonicalize(host_fat_path).map_err(|error| {
+                            anyhow::anyhow!(
+                                "failed to canonicalize FAT image path (path={}, error={error})",
+                                host_fat_path
+                            )
+                        })?;
+
+                    let canonical_fat_str: String = canonical_fat
+                        .to_str()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "FAT image path is not valid UTF-8 (path={})",
+                                canonical_fat.display()
+                            )
+                        })?
+                        .to_string();
+
+                    fat_images.push((canonical_fat_str, mount_point.to_string()));
                     i += 1;
                 },
                 // Set initrd arguments.
@@ -410,6 +511,8 @@ impl Args {
             initrd_filename,
             initrd_args,
             ramfs_filename,
+            mounts,
+            fat_images,
             memory_size,
             vm_stderr,
             system_vm_addr,
@@ -430,15 +533,17 @@ impl Args {
     ///
     pub fn usage() {
         eprintln!(
-            "Usage: {} {} <id> {} <kernel> [{} <size>] [{} <file>] [{} <file>] [{} <file>] [{} \
-             <system-vm-addr> {} <control-plane-addr> {} <gateway-addr>] [{} [{} <dir>]] [{} \
-             <args>]",
+            "Usage: {} {} <id> {} <kernel> [{} <size>] [{} <file>] [{} <file>] [{} \
+             <host:guest>]... [{} <fat_path:mount_point>]... [{} <file>] [{} <system-vm-addr> {} \
+             <control-plane-addr> {} <gateway-addr>] [{} [{} <dir>]] [{} <args>]",
             Self::PROGRAM_NAME,
             Self::OPT_USER_VM_ID,
             Self::OPT_KERNEL,
             Self::OPT_MEMORY_SIZE,
             Self::OPT_INITRD,
             Self::OPT_RAMFS,
+            Self::OPT_MOUNT,
+            Self::OPT_FAT,
             Self::OPT_STDERR,
             Self::OPT_SYSTEM_VM_SOCKADDR,
             Self::OPT_CONTROL_PLANE_SOCKADDR,
@@ -502,6 +607,58 @@ impl Args {
     ///
     pub fn ramfs_filename(&mut self) -> Option<String> {
         self.ramfs_filename.take()
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the host-to-guest filesystem mounts that were passed as command-line arguments.
+    ///
+    /// # Returns
+    ///
+    /// A slice of (host_path, guest_path) pairs representing filesystem mounts.
+    ///
+    pub fn mounts(&self) -> &[(String, String)] {
+        &self.mounts
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Takes ownership of the host-to-guest filesystem mounts.
+    ///
+    /// # Returns
+    ///
+    /// A vector of (host_path, guest_path) pairs representing filesystem mounts.
+    ///
+    pub fn take_mounts(&mut self) -> Vec<(String, String)> {
+        std::mem::take(&mut self.mounts)
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Returns the pre-built FAT images that were passed as command-line arguments.
+    ///
+    /// # Returns
+    ///
+    /// A slice of (host_fat_path, mount_point) pairs representing FAT images to mount.
+    ///
+    pub fn fat_images(&self) -> &[(String, String)] {
+        &self.fat_images
+    }
+
+    ///
+    /// # Description
+    ///
+    /// Takes ownership of the pre-built FAT images.
+    ///
+    /// # Returns
+    ///
+    /// A vector of (host_fat_path, mount_point) pairs representing FAT images to mount.
+    ///
+    pub fn take_fat_images(&mut self) -> Vec<(String, String)> {
+        std::mem::take(&mut self.fat_images)
     }
 
     ///
