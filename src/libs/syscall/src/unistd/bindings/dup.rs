@@ -6,6 +6,7 @@
 //==================================================================================================
 
 use crate::errno::__errno_location;
+use ::hyperlight_guest::fs;
 use ::sys::error::ErrorCode;
 use ::sysapi::ffi::c_int;
 
@@ -47,10 +48,22 @@ use ::sysapi::ffi::c_int;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dup(fd: c_int) -> c_int {
     ::syslog::trace!("dup(): fd={fd:?}");
-    // TODO: https://github.com/nanvix/nanvix/issues/587
-    ::syslog::debug!("dup(): not implemented");
-    unsafe {
-        *__errno_location() = ErrorCode::InvalidSysCall.get();
+
+    // Duplicate file descriptor via Hyperlight guest filesystem.
+    match fs::dup_fd(fd) {
+        Ok(new_fd) => {
+            ::syslog::trace!("dup(): success (fd={fd:?}, new_fd={new_fd:?})");
+            new_fd
+        },
+        Err(fs::FsError::InvalidFd) => {
+            ::syslog::error!("dup(): invalid file descriptor (fd={fd:?})");
+            *__errno_location() = ErrorCode::BadFile.get();
+            -1
+        },
+        Err(e) => {
+            ::syslog::error!("dup(): {e:?} (fd={fd:?})");
+            *__errno_location() = ErrorCode::IoErr.get();
+            -1
+        },
     }
-    -1
 }

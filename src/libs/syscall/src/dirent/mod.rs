@@ -160,6 +160,11 @@ impl DirectoryStream {
         self.next_entries.pop_front()
     }
 
+    /// Returns the number of entries remaining in the directory stream.
+    pub fn entry_count(&self) -> usize {
+        self.next_entries.len()
+    }
+
     /// Returns a reference to the last directory entry returned by `readdir()`.
     pub fn last_dirent_as_mut(&mut self) -> &mut dirent {
         &mut self.last_entry

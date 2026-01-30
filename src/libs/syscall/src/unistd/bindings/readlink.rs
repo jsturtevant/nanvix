@@ -5,9 +5,9 @@
 // Imports
 //==================================================================================================
 
-use crate::unistd;
+use crate::errno::__errno_location;
+use ::sys::error::ErrorCode;
 use ::sysapi::{
-    fcntl::atflags::AT_FDCWD,
     ffi::c_char,
     sys_types::{
         c_size_t,
@@ -24,6 +24,11 @@ use ::sysapi::{
 ///
 /// Reads the value of a symbolic link.
 ///
+/// # Note
+///
+/// FAT filesystems do not support symbolic links. This function always returns -1
+/// with errno set to EINVAL (Invalid argument) since symlinks cannot exist.
+///
 /// # Parameters
 ///
 /// - `path`: Path to the symbolic link.
@@ -32,8 +37,7 @@ use ::sysapi::{
 ///
 /// # Returns
 ///
-/// Upon successful completion, `readlink()` returns the number of bytes read. Otherwise, it
-/// returns `-1` and sets `errno` to indicate the error.
+/// Always returns `-1` and sets `errno` to `EINVAL` because FAT does not support symlinks.
 ///
 /// # Safety
 ///
@@ -46,9 +50,14 @@ use ::sysapi::{
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn readlink(
     path: *const c_char,
-    buf: *mut c_char,
-    bufsize: c_size_t,
+    _buf: *mut c_char,
+    _bufsize: c_size_t,
 ) -> c_ssize_t {
-    ::syslog::trace!("readlink(): path={path:?}, buf={buf:?}, bufsize={bufsize}");
-    unistd::bindings::readlinkat::readlinkat(AT_FDCWD, path, buf, bufsize)
+    ::syslog::trace!("readlink(): path={path:?} - FAT does not support symlinks");
+
+    // FAT filesystem does not support symbolic links.
+    // Return EINVAL immediately without going through IPC.
+    ::syslog::debug!("readlink(): returning EINVAL (FAT has no symlink support)");
+    *__errno_location() = ErrorCode::InvalidArgument.get();
+    -1
 }

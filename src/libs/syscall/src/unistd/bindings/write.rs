@@ -13,6 +13,7 @@ use ::core::slice;
 use ::hyperlight_guest::{
     fs::{
         self,
+        get_fd_entry,
         File,
     },
     Write,
@@ -122,7 +123,19 @@ pub unsafe extern "C" fn write(fd: c_int, buffer: *const c_void, count: c_size_t
     // Write to FAT file via Hyperlight guest filesystem directly.
     // File implements embedded_io::Write, so we can call write() directly.
     let buffer: &[u8] = slice::from_raw_parts(buffer as *const u8, count as usize);
-    let mut file: File = File::from_fd(fd);
+
+    // Check if the fd is a FAT file.
+    let is_fat: bool = match get_fd_entry(fd) {
+        Ok(entry) => entry.is_fat(),
+        Err(_) => {
+            ::syslog::error!("write(): invalid file descriptor (fd={})", fd);
+            *__errno_location() = ErrorCode::BadFile.get();
+            return -1;
+        },
+    };
+
+    // SAFETY: fd validated above.
+    let mut file: File = unsafe { File::from_raw_fd(fd, is_fat) };
     match file.write(buffer) {
         Ok(bytes_written) => {
             // Don't drop the File (it would close the fd).

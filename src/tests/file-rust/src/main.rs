@@ -64,7 +64,7 @@ use ::syscall::unistd;
 
 #[unsafe(no_mangle)]
 pub fn main() -> Result<(), Error> {
-    let guest_fs_manifest_base: usize = 0x0fa88000;
+    let guest_fs_manifest_base: usize = 0x0fa7f000;
     let guest_fs_manifest_size: usize = 0x00000098;
     info!(
         "guest_fs_manifest_base={:#x}, guest_fs_manifest_size={:#x}",
@@ -285,124 +285,6 @@ pub fn main() -> Result<(), Error> {
         panic!("mkdir failed");
     }
     info!("Test 16 PASSED: mkdir created /data/testdir");
-
-    // // Test 17: Create a file on FAT mount using open with O_CREAT.
-    // info!("Test 17: Testing open with O_CREAT on FAT mount");
-    // let testfile_path: &[u8] = b"/data/testfile.txt\0";
-    // let testfile_ptr: *const c_char = testfile_path.as_ptr().cast::<c_char>();
-    // // O_WRONLY | O_CREAT = 0x1 | 0x0200 = 0x0201
-    // let fat_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(testfile_ptr, 0x0201, 0o644) };
-    // if fat_fd < 0 {
-    //     error!("Test 17 FAILED: open with O_CREAT returned {}", fat_fd);
-    //     panic!("open O_CREAT failed");
-    // }
-    // info!("Test 17 PASSED: created /data/testfile.txt with fd={}", fat_fd);
-
-    // // Test 18: Write to FAT file.
-    // info!("Test 18: Testing write to FAT file");
-    // let write_data: &[u8] = b"Hello, FAT filesystem!";
-    // let write_result: i32 = unsafe {
-    //     syscall::unistd::bindings::write::write(
-    //         fat_fd,
-    //         write_data.as_ptr().cast::<c_void>(),
-    //         write_data.len() as u32,
-    //     )
-    // };
-    // if write_result <= 0 {
-    //     error!("Test 18 FAILED: write returned {}", write_result);
-    //     panic!("write to FAT file failed");
-    // }
-    // let bytes_written: usize = write_result as usize;
-    // if bytes_written != write_data.len() {
-    //     error!("Test 18 FAILED: write returned {} (expected {})", bytes_written, write_data.len());
-    //     panic!("partial write to FAT file");
-    // }
-    // info!("Test 18 PASSED: wrote {} bytes to FAT file", bytes_written);
-
-    // // Close the FAT file.
-    // let close_fat: i32 = syscall::unistd::bindings::close::close(fat_fd);
-    // if close_fat != 0 {
-    //     error!("Test 18 (close): close returned {}", close_fat);
-    //     panic!("close FAT file failed");
-    // }
-
-    // // Test 19: Read back the file we just wrote.
-    // info!("Test 19: Testing read from FAT file");
-    // // O_RDONLY = 0x0
-    // let fat_fd2: i32 = unsafe { syscall::fcntl::bindings::open::open(testfile_ptr, 0, 0) };
-    // if fat_fd2 < 0 {
-    //     error!("Test 19 FAILED: open for read returned {}", fat_fd2);
-    //     panic!("open FAT file for read failed");
-    // }
-    // let mut read_buf: [u8; 64] = [0; 64];
-    // let read_fat_result: i32 = unsafe {
-    //     syscall::unistd::bindings::read::read(
-    //         fat_fd2,
-    //         read_buf.as_mut_ptr().cast::<c_void>(),
-    //         read_buf.len() as u32,
-    //     )
-    // };
-    // if read_fat_result <= 0 {
-    //     error!("Test 19 FAILED: read returned {}", read_fat_result);
-    //     panic!("read from FAT file failed");
-    // }
-    // let bytes_read_fat: usize = read_fat_result as usize;
-    // if bytes_read_fat != write_data.len() {
-    //     error!("Test 19 FAILED: read {} bytes (expected {})", bytes_read_fat, write_data.len());
-    //     panic!("read wrong number of bytes");
-    // }
-    // if &read_buf[..bytes_read_fat] != write_data {
-    //     error!("Test 19 FAILED: data mismatch");
-    //     panic!("FAT file data mismatch");
-    // }
-    // info!("Test 19 PASSED: read back {} bytes, data matches", bytes_read_fat);
-    // let _: i32 = syscall::unistd::bindings::close::close(fat_fd2);
-
-    // // Test 20: Rename the file.
-    // info!("Test 20: Testing rename on FAT mount");
-    // let renamed_path: &[u8] = b"/data/renamed.txt\0";
-    // let renamed_ptr: *const c_char = renamed_path.as_ptr().cast::<c_char>();
-    // let rename_result: i32 =
-    //     unsafe { syscall::fcntl::bindings::rename::rename(testfile_ptr, renamed_ptr) };
-    // if rename_result != 0 {
-    //     error!("Test 20 FAILED: rename returned {}", rename_result);
-    //     panic!("rename failed");
-    // }
-    // info!("Test 20 PASSED: renamed file to /data/renamed.txt");
-
-    // // Verify the old name no longer exists.
-    // let old_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(testfile_ptr, 0, 0) };
-    // if old_fd >= 0 {
-    //     let _: i32 = syscall::unistd::bindings::close::close(old_fd);
-    //     error!("Test 20: old filename still exists after rename");
-    //     panic!("rename did not remove old name");
-    // }
-
-    // // Verify new name exists and has correct content.
-    // let new_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(renamed_ptr, 0, 0) };
-    // if new_fd < 0 {
-    //     error!("Test 20: cannot open renamed file");
-    //     panic!("renamed file not found");
-    // }
-    // let _: i32 = syscall::unistd::bindings::close::close(new_fd);
-    // info!("Test 20: verified renamed file exists");
-
-    // // Test 21: Unlink (delete) the file.
-    // info!("Test 21: Testing unlink on FAT mount");
-    // let unlink_result: i32 = unsafe { syscall::unistd::bindings::unlink::unlink(renamed_ptr) };
-    // if unlink_result != 0 {
-    //     error!("Test 21 FAILED: unlink returned {}", unlink_result);
-    //     panic!("unlink failed");
-    // }
-    // info!("Test 21 PASSED: unlinked /data/renamed.txt");
-
-    // // Verify the file is gone.
-    // let gone_fd: i32 = unsafe { syscall::fcntl::bindings::open::open(renamed_ptr, 0, 0) };
-    // if gone_fd >= 0 {
-    //     let _: i32 = syscall::unistd::bindings::close::close(gone_fd);
-    //     error!("Test 21: file still exists after unlink");
-    //     panic!("unlink did not remove file");
-    // }
 
     // ==================== FAT File I/O Tests Using Hyperlight APIs ====================
     // These tests use hyperlight_guest::fs APIs directly to test FAT file operations.
@@ -663,6 +545,200 @@ pub fn main() -> Result<(), Error> {
         error!("Test 24 FAILED: could not open file for read-only test");
         panic!("open failed for read-only test");
     }
+
+    // ========================================================================
+    // Tests for Hyperlight FS-based implementations (opendir, readdir, openat)
+    // ========================================================================
+
+    // Test 25: Test opendir on /data directory (FAT mount).
+    info!("Test 25: Testing opendir on /data directory");
+    let data_dir_path: &[u8] = b"/data\0";
+    let data_dir_ptr: *const c_char = data_dir_path.as_ptr().cast::<c_char>();
+    let dir_handle: *mut syscall::dirent::DirectoryStream =
+        unsafe { syscall::dirent::bindings::opendir::opendir(data_dir_ptr) };
+    if dir_handle.is_null() {
+        error!("Test 25 FAILED: opendir returned null");
+        panic!("opendir failed");
+    }
+    info!("Test 25 PASSED: opendir succeeded");
+
+    // Test 26: Test readdir to enumerate directory entries.
+    info!("Test 26: Testing readdir on /data directory");
+    let mut entry_count: i32 = 0;
+    let mut found_testdir: bool = false;
+    loop {
+        let entry: *mut sysapi::dirent::dirent =
+            unsafe { syscall::dirent::bindings::readdir::readdir(dir_handle) };
+        if entry.is_null() {
+            break;
+        }
+        entry_count += 1;
+        // Extract the name from the entry.
+        let d_name: &[u8] = unsafe { &(*entry).d_name };
+        // Find the null terminator.
+        let mut name_len: usize = 0;
+        for i in 0..d_name.len() {
+            if d_name[i] == 0 {
+                name_len = i;
+                break;
+            }
+        }
+        if let Ok(name_str) = core::str::from_utf8(&d_name[..name_len]) {
+            info!("Test 26: found entry: {:?}", name_str);
+            if name_str == "testdir" {
+                found_testdir = true;
+            }
+        }
+    }
+    if entry_count == 0 {
+        error!("Test 26 FAILED: no directory entries found");
+        panic!("readdir returned no entries");
+    }
+    info!("Test 26 PASSED: readdir found {} entries", entry_count);
+    if found_testdir {
+        info!("Test 26: confirmed testdir exists in /data");
+    }
+
+    // Test 27: Test closedir.
+    info!("Test 27: Testing closedir");
+    let closedir_result: i32 =
+        unsafe { syscall::dirent::bindings::closedir::closedir(dir_handle) };
+    if closedir_result != 0 {
+        error!("Test 27 FAILED: closedir returned {}", closedir_result);
+        panic!("closedir failed");
+    }
+    info!("Test 27 PASSED: closedir succeeded");
+
+    // Test 28: Test opendir on /data/testdir (subdirectory).
+    info!("Test 28: Testing opendir on /data/testdir (subdirectory)");
+    let testdir_dir_path: &[u8] = b"/data/testdir\0";
+    let testdir_dir_ptr: *const c_char = testdir_dir_path.as_ptr().cast::<c_char>();
+    let testdir_handle: *mut syscall::dirent::DirectoryStream =
+        unsafe { syscall::dirent::bindings::opendir::opendir(testdir_dir_ptr) };
+    if testdir_handle.is_null() {
+        error!("Test 28 FAILED: opendir on /data/testdir returned null");
+        panic!("opendir /data/testdir failed");
+    }
+    info!("Test 28 PASSED: opendir on /data/testdir succeeded");
+
+    // Test 29: Test readdir on /data/testdir.
+    info!("Test 29: Testing readdir on /data/testdir");
+    let mut testdir_entry_count: i32 = 0;
+    let mut found_test_file: bool = false;
+    loop {
+        let entry: *mut sysapi::dirent::dirent =
+            unsafe { syscall::dirent::bindings::readdir::readdir(testdir_handle) };
+        if entry.is_null() {
+            break;
+        }
+        testdir_entry_count += 1;
+        let d_name: &[u8] = unsafe { &(*entry).d_name };
+        let mut name_len: usize = 0;
+        for i in 0..d_name.len() {
+            if d_name[i] == 0 {
+                name_len = i;
+                break;
+            }
+        }
+        if let Ok(name_str) = core::str::from_utf8(&d_name[..name_len]) {
+            info!("Test 29: /data/testdir entry: {:?}", name_str);
+            if name_str == "test_file.txt" {
+                found_test_file = true;
+            }
+        }
+    }
+    info!("Test 29 PASSED: readdir on /data/testdir found {} entries", testdir_entry_count);
+    if found_test_file {
+        info!("Test 29: confirmed test_file.txt exists in /data/testdir");
+    }
+    let _: i32 = unsafe { syscall::dirent::bindings::closedir::closedir(testdir_handle) };
+
+    // Test 30: Test openat with AT_FDCWD (current working directory).
+    info!("Test 30: Testing openat with AT_FDCWD");
+    let at_fdcwd: i32 = -100; // AT_FDCWD value.
+    let relative_path: &[u8] = b"README.md\0";
+    let relative_path_ptr: *const c_char = relative_path.as_ptr().cast::<c_char>();
+    let openat_fd: i32 = unsafe {
+        syscall::fcntl::bindings::openat::openat(at_fdcwd, relative_path_ptr, 0, 0)
+    };
+    if openat_fd < 0 {
+        error!("Test 30 FAILED: openat with AT_FDCWD returned {}", openat_fd);
+        panic!("openat AT_FDCWD failed");
+    }
+    info!("Test 30 PASSED: openat with AT_FDCWD returned fd={}", openat_fd);
+
+    // Test 31: Read from the file opened with openat.
+    info!("Test 31: Testing read from openat fd");
+    let mut openat_buf: [u8; 32] = [0; 32];
+    let openat_read_result: i32 = unsafe {
+        syscall::unistd::bindings::read::read(
+            openat_fd,
+            openat_buf.as_mut_ptr().cast::<c_void>(),
+            openat_buf.len() as u32,
+        )
+    };
+    if openat_read_result <= 0 {
+        error!("Test 31 FAILED: read from openat fd returned {}", openat_read_result);
+        panic!("read from openat fd failed");
+    }
+    info!("Test 31 PASSED: read {} bytes from openat fd", openat_read_result);
+    let _: i32 = syscall::unistd::bindings::close::close(openat_fd);
+
+    // Test 32: Test openat with absolute path (should ignore dirfd).
+    info!("Test 32: Testing openat with absolute path");
+    let abs_path: &[u8] = b"/README.md\0";
+    let abs_path_ptr: *const c_char = abs_path.as_ptr().cast::<c_char>();
+    // Use a bogus dirfd - should be ignored for absolute paths.
+    let openat_abs_fd: i32 =
+        unsafe { syscall::fcntl::bindings::openat::openat(999, abs_path_ptr, 0, 0) };
+    if openat_abs_fd < 0 {
+        error!("Test 32 FAILED: openat with absolute path returned {}", openat_abs_fd);
+        panic!("openat absolute path failed");
+    }
+    info!("Test 32 PASSED: openat with absolute path returned fd={}", openat_abs_fd);
+    let _: i32 = syscall::unistd::bindings::close::close(openat_abs_fd);
+
+    // Test 33: Test openat with O_CREAT on FAT mount.
+    info!("Test 33: Testing openat with O_CREAT on FAT mount");
+    let o_creat: i32 = 0x0200; // O_CREAT flag (matches sysapi definition).
+    let o_wronly: i32 = 0x1; // O_WRONLY flag.
+    let fat_file_path: &[u8] = b"/data/testdir/openat_test.txt\0";
+    let fat_file_ptr: *const c_char = fat_file_path.as_ptr().cast::<c_char>();
+    let openat_create_fd: i32 = unsafe {
+        syscall::fcntl::bindings::openat::openat(at_fdcwd, fat_file_ptr, o_creat | o_wronly, 0o644)
+    };
+    if openat_create_fd < 0 {
+        error!("Test 33 FAILED: openat O_CREAT returned {}", openat_create_fd);
+        panic!("openat O_CREAT failed");
+    }
+    info!("Test 33 PASSED: openat O_CREAT returned fd={}", openat_create_fd);
+
+    // Test 34: Write to the created file.
+    info!("Test 34: Testing write to openat-created file");
+    let openat_write_data: &[u8] = b"Created via openat!";
+    let openat_write_result: i32 = unsafe {
+        syscall::unistd::bindings::write::write(
+            openat_create_fd,
+            openat_write_data.as_ptr().cast::<c_void>(),
+            openat_write_data.len() as u32,
+        )
+    };
+    if openat_write_result <= 0 {
+        error!("Test 34 FAILED: write to openat file returned {}", openat_write_result);
+        panic!("write to openat file failed");
+    }
+    info!("Test 34 PASSED: wrote {} bytes to openat-created file", openat_write_result);
+    let _: i32 = syscall::unistd::bindings::close::close(openat_create_fd);
+
+    // Test 35: Delete the openat-created file.
+    info!("Test 35: Cleaning up openat test file");
+    let unlink_openat_result: i32 =
+        unsafe { syscall::unistd::bindings::unlink::unlink(fat_file_ptr) };
+    if unlink_openat_result != 0 {
+        error!("Test 35 FAILED: unlink openat test file returned {}", unlink_openat_result);
+        panic!("unlink openat test file failed");
+    }
+    info!("Test 35 PASSED: deleted openat test file");
 
     // Test 22: Unlink (delete) the test file before removing the directory.
     info!("Test 22: Testing unlink on FAT mount");

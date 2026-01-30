@@ -20,7 +20,10 @@ use ::sysapi::{
     },
 };
 use hyperlight_guest::{
-    fs::File,
+    fs::{
+        get_fd_entry,
+        File,
+    },
     Seek,
     SeekFrom,
 };
@@ -74,9 +77,18 @@ pub fn lseek(fd: RawFileDescriptor, offset: off_t, whence: c_int) -> Result<off_
         },
     };
 
-    // SAFETY: fd comes from C API, assumed valid. We use from_raw_fd because
+    // Check if the fd is a FAT file.
+    let is_fat: bool = match get_fd_entry(fd) {
+        Ok(entry) => entry.is_fat(),
+        Err(_) => {
+            ::syslog::error!("lseek(): invalid file descriptor (fd={})", fd);
+            return Err(Error::new(ErrorCode::BadFile, "invalid file descriptor"));
+        },
+    };
+
+    // SAFETY: fd comes from C API, validated above. We use from_raw_fd because
     // the fd ownership belongs to the caller, not us.
-    let mut file: File = unsafe { File::from_raw_fd(fd) };
+    let mut file: File = unsafe { File::from_raw_fd(fd, is_fat) };
 
     // Perform the seek operation.
     let new_pos: u64 = match file.seek(seek_from) {

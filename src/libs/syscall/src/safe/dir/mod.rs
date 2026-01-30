@@ -11,13 +11,8 @@
 //==================================================================================================
 
 use crate::{
-    dirent::{
-        self,
-        DirectoryEntryFileType,
-    },
-    fcntl::{
-        self,
-    },
+    dirent::DirectoryEntryFileType,
+    fcntl,
     safe::{
         fs::InodeNumber,
         FileSystemPath,
@@ -51,13 +46,6 @@ use spin::{
     Mutex,
     MutexGuard,
 };
-
-//==================================================================================================
-// Constants
-//==================================================================================================
-
-/// Minimum number of entries to get when refilling buffers.
-const REFILL_COUNT: usize = 1;
 
 //==================================================================================================
 // RawDirectoryEntry
@@ -416,6 +404,18 @@ pub fn opendir(directory_name: &FileSystemPath) -> Result<RawDirectory, Error> {
 /// `None` is returned..  If an error occurs, an error is returned instead
 ///
 pub fn readdir(dir: &mut RawDirectory) -> Result<Option<RawDirectoryEntry>, Error> {
+    use ::hyperlight_guest::fs::{
+        self,
+        DirEntry,
+    };
+    use ::sysapi::{
+        dirent::dirent_file_type::{
+            DT_DIR,
+            DT_REG,
+        },
+        limits::NAME_MAX,
+    };
+
     let dir_clone: Arc<Mutex<RawDirectoryInner>> = dir.inner.clone();
     let mut inner: MutexGuard<'_, RawDirectoryInner> = dir.inner.lock();
 
@@ -423,16 +423,51 @@ pub fn readdir(dir: &mut RawDirectory) -> Result<Option<RawDirectoryEntry>, Erro
         return Ok(Some(entry));
     }
 
-    // Refill the entries buffer.
-    let mut entries: Vec<posix_dent> = dirent::posix_getdents(inner.fd, REFILL_COUNT)?;
+    // Refill the entries buffer using Hyperlight FS read_dir().
+    let entries: Vec<DirEntry> = match fs::read_dir(&inner.directory_name) {
+        Ok(entries) => entries,
+        Err(e) => {
+            ::syslog::error!(
+                "readdir(): failed to read directory {:?}: {:?}",
+                inner.directory_name,
+                e
+            );
+            let error_code: ErrorCode = match e {
+                fs::FsError::NotFound => ErrorCode::NoSuchEntry,
+                fs::FsError::NotADirectory => ErrorCode::InvalidDirectory,
+                fs::FsError::InvalidPath => ErrorCode::InvalidArgument,
+                _ => ErrorCode::IoErr,
+            };
+            return Err(Error::new(error_code, "readdir() failed"));
+        },
+    };
+
     if entries.is_empty() {
         return Ok(None);
     }
 
-    // Push entries to buffer.
-    while let Some(entry) = entries.pop() {
+    // Convert DirEntry to posix_dent and push to buffer.
+    for entry in entries {
+        let mut d_name: [u8; NAME_MAX + 1] = [0u8; NAME_MAX + 1];
+        let name_bytes: &[u8] = entry.name.as_bytes();
+        let copy_len: usize = core::cmp::min(name_bytes.len(), NAME_MAX);
+        d_name[..copy_len].copy_from_slice(&name_bytes[..copy_len]);
+
+        #[allow(clippy::as_conversions)]
+        let d_type: u8 = if entry.is_dir { DT_DIR } else { DT_REG };
+
+        #[allow(clippy::as_conversions)]
+        let d_reclen: u16 = core::mem::size_of::<posix_dent>() as u16;
+
+        let posix_entry: posix_dent = posix_dent {
+            d_ino: 0, // Inode not available from Hyperlight FS.
+            d_reclen,
+            d_type,
+            d_name,
+            _padding: [0],
+        };
         inner.entries.push(RawDirectoryEntry {
-            entry,
+            entry: posix_entry,
             root: dir_clone.clone(),
         });
     }

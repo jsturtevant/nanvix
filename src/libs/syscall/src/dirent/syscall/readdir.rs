@@ -5,56 +5,40 @@
 // Imports
 //==================================================================================================
 
-use crate::dirent::{
-    posix_dent,
-    posix_getdents,
-    DirectoryStream,
-};
-use ::alloc::{
-    boxed::Box,
-    vec::Vec,
-};
+use crate::dirent::DirectoryStream;
+use ::alloc::boxed::Box;
 use ::sys::error::Error;
-use sysapi::dirent::dirent;
-
-//==================================================================================================
-// Constants
-//==================================================================================================
-
-/// Minimum number of entries to get when refilling buffers.
-const REFILL_COUNT: usize = 1;
+use ::sysapi::dirent::dirent;
 
 //==================================================================================================
 // Standalone Functions
 //==================================================================================================
 
+/// Reads the next directory entry from a directory stream.
+///
+/// # Description
+///
+/// Uses the pre-populated entries from `opendir()` which called Hyperlight's `read_dir()`.
+/// No IPC is needed since all entries were loaded when the directory was opened.
+///
+/// # Parameters
+///
+/// - `dir`: Mutable reference to the directory stream.
+///
+/// # Returns
+///
+/// Upon successful completion, returns `Ok(Some(dirent))` with the next entry, or `Ok(None)` if
+/// the end of the directory stream has been reached. Otherwise, an error is returned.
+///
 pub fn readdir(dir: &mut Box<DirectoryStream>) -> Result<Option<dirent>, Error> {
-    ::syslog::trace!("readdir(): dir.fd={:?}", dir.fd());
+    ::syslog::trace!("readdir(): dir.fd={:?}, remaining={}", dir.fd(), dir.entry_count());
 
+    // Pop the next entry from the directory stream (pre-populated by opendir).
     if let Some(posix_dirent) = dir.pop() {
         let dirent: dirent = posix_dirent.into();
         return Ok(Some(dirent));
     }
 
-    // Refill buffer.
-    let mut entries: Vec<posix_dent> = match posix_getdents(dir.fd, REFILL_COUNT) {
-        Ok(entries) => entries,
-        Err(error) => {
-            ::syslog::warn!("readdir(): {error:?} (dir.fd={:?})", dir.fd());
-            return Err(error);
-        },
-    };
-
-    // Get next entry.
-    let dirent: dirent = match entries.pop() {
-        Some(posix_dirent) => posix_dirent.into(),
-        None => return Ok(None),
-    };
-
-    // Push remaining entries to the directory stream.
-    while let Some(entry) = entries.pop() {
-        dir.push(entry);
-    }
-
-    Ok(Some(dirent))
+    // No more entries - end of directory.
+    Ok(None)
 }

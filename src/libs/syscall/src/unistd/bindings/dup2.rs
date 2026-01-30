@@ -6,6 +6,7 @@
 //==================================================================================================
 
 use crate::errno::__errno_location;
+use ::hyperlight_guest::fs;
 use ::sys::error::ErrorCode;
 use ::sysapi::ffi::c_int;
 
@@ -51,10 +52,37 @@ use ::sysapi::ffi::c_int;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dup2(oldfd: c_int, newfd: c_int) -> c_int {
     ::syslog::trace!("dup2(): oldfd={oldfd:?}, newfd={newfd:?}");
-    // TODO: https://github.com/nanvix/nanvix/issues/354
-    ::syslog::debug!("dup2(): not implemented");
-    unsafe {
-        *__errno_location() = ErrorCode::InvalidSysCall.get();
+
+    // Check if oldfd equals newfd (POSIX: return newfd without closing).
+    if oldfd == newfd {
+        // Verify oldfd is valid by checking if it exists.
+        match fs::get_fd_entry(oldfd) {
+            Ok(_) => return newfd,
+            Err(_) => {
+                ::syslog::error!("dup2(): invalid file descriptor (oldfd={oldfd:?})");
+                *__errno_location() = ErrorCode::BadFile.get();
+                return -1;
+            },
+        }
     }
-    -1
+
+    // Duplicate file descriptor to specific newfd via Hyperlight guest filesystem.
+    match fs::dup_fd_to(oldfd, Some(newfd), None) {
+        Ok(result_fd) => {
+            ::syslog::trace!(
+                "dup2(): success (oldfd={oldfd:?}, newfd={newfd:?}, result_fd={result_fd:?})"
+            );
+            result_fd
+        },
+        Err(fs::FsError::InvalidFd) => {
+            ::syslog::error!("dup2(): invalid file descriptor (oldfd={oldfd:?}, newfd={newfd:?})");
+            *__errno_location() = ErrorCode::BadFile.get();
+            -1
+        },
+        Err(e) => {
+            ::syslog::error!("dup2(): {e:?} (oldfd={oldfd:?}, newfd={newfd:?})");
+            *__errno_location() = ErrorCode::IoErr.get();
+            -1
+        },
+    }
 }

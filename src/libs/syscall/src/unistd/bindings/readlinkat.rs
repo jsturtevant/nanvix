@@ -5,21 +5,13 @@
 // Imports
 //==================================================================================================
 
-use crate::{
-    errno::__errno_location,
-    unistd,
-};
-use ::core::{
-    ffi,
-    slice,
-};
+use crate::errno::__errno_location;
 use ::sys::error::ErrorCode;
 use ::sysapi::{
     ffi::{
         c_char,
         c_int,
     },
-    limits::PATH_MAX,
     sys_types::{
         c_size_t,
         c_ssize_t,
@@ -35,6 +27,11 @@ use ::sysapi::{
 ///
 /// Reads the value of a symbolic link relative to a directory file descriptor.
 ///
+/// # Note
+///
+/// FAT filesystems do not support symbolic links. This function always returns -1
+/// with errno set to EINVAL (Invalid argument) since symlinks cannot exist.
+///
 /// # Parameters
 ///
 /// - `dirfd`: Directory file descriptor.
@@ -44,8 +41,7 @@ use ::sysapi::{
 ///
 /// # Returns
 ///
-/// Upon successful completion, `readlinkat()` returns the number of bytes read. Otherwise, it
-/// returns `-1` and sets `errno` to indicate the error.
+/// Always returns `-1` and sets `errno` to `EINVAL` because FAT does not support symlinks.
 ///
 /// # Safety
 ///
@@ -59,64 +55,16 @@ use ::sysapi::{
 pub unsafe extern "C" fn readlinkat(
     dirfd: c_int,
     path: *const c_char,
-    buf: *mut c_char,
-    bufsize: c_size_t,
+    _buf: *mut c_char,
+    _bufsize: c_size_t,
 ) -> c_ssize_t {
     ::syslog::trace!(
-        "readlinkat(): dirfd={dirfd:?}, path={path:?}, buf={buf:?}, bufsize={bufsize:?}"
+        "readlinkat(): dirfd={dirfd:?}, path={path:?} - FAT does not support symlinks"
     );
 
-    // Attempt to convert `buf`.
-    let buf: &mut [u8] = {
-        // Check if `bufsize` is invalid.
-        let bufsize: usize = if (bufsize == 0) || (bufsize as usize > PATH_MAX) {
-            ::syslog::error!(
-                "readlinkat(): invalid buffer size (dirfd={dirfd:?}, path={path:?}, buf={buf:?}, \
-                 bufsize={bufsize:?})"
-            );
-            *__errno_location() = ErrorCode::InvalidArgument.get();
-            return -1;
-        } else {
-            bufsize as usize
-        };
-
-        // Check if `buf` is invalid.
-        if buf.is_null() {
-            ::syslog::error!(
-                "readlinkat(): invalid buffer (dirfd={dirfd:?}, path={path:?}, buf={buf:?}, \
-                 bufsize={bufsize:?})"
-            );
-            *__errno_location() = ErrorCode::InvalidArgument.get();
-            return -1;
-        }
-
-        // Attempt to convert `path`.
-        slice::from_raw_parts_mut(buf as *mut u8, bufsize)
-    };
-
-    // Attempt to convert `path`.
-    let path: &str = match ffi::CStr::from_ptr(path).to_str() {
-        Ok(pathname) => pathname,
-        Err(_error) => {
-            ::syslog::error!(
-                "readlinkat(): invalid path (dirfd={dirfd:?}, path={path:?}, buf={buf:?}, \
-                 bufsize={bufsize:?})"
-            );
-            *__errno_location() = ErrorCode::InvalidArgument.get();
-            return -1;
-        },
-    };
-
-    // Read symbolic link and parse the result.
-    match unistd::readlinkat(dirfd, path, buf) {
-        Ok(bytes_read) => bytes_read,
-        Err(error) => {
-            ::syslog::error!(
-                "readlinkat(): {error:?}, (dirfd={dirfd:?}, path={path:?}, buf={buf:?}, \
-                 bufsize={bufsize:?})"
-            );
-            *__errno_location() = error.code.get();
-            -1
-        },
-    }
+    // FAT filesystem does not support symbolic links.
+    // Return EINVAL immediately without going through IPC.
+    ::syslog::debug!("readlinkat(): returning EINVAL (FAT has no symlink support)");
+    *__errno_location() = ErrorCode::InvalidArgument.get();
+    -1
 }
