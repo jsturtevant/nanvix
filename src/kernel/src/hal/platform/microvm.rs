@@ -61,6 +61,22 @@ pub struct Platform {
     pub _pit: Pit,
 }
 
+impl Platform {
+    ///
+    /// # Description
+    ///
+    /// Gets the filesystem manifest information.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the base address and size of the filesystem manifest.
+    /// For microvm platform, this always returns (0, 0) as there is no HyperlightFS.
+    ///
+    pub fn get_fs_manifest_info() -> (usize, usize) {
+        (0, 0)
+    }
+}
+
 //==================================================================================================
 // Standalone Functions
 //==================================================================================================

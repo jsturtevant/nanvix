@@ -421,3 +421,46 @@ pub fn set_thread_data_area(user_tda: *mut u8) -> Result<(), Error> {
         Err(Error::new(ErrorCode::try_from(result)?, "failed to set data area"))
     }
 }
+
+//==================================================================================================
+// Get Filesystem Manifest
+//==================================================================================================
+
+///
+/// # Description
+///
+/// Gets the filesystem manifest information.
+///
+/// # Parameters
+///
+/// - `base`: Pointer to store the base address of the filesystem manifest.
+/// - `size`: Pointer to store the size of the filesystem manifest.
+///
+/// # Return Value
+///
+/// On successful completion, this function writes the filesystem manifest base address and size
+/// to the provided pointers and returns empty. On failure, this function returns an error code.
+///
+/// # Errors
+///
+/// This function fails with the following error codes:
+///
+/// - [`ErrorCode::InvalidArgument`]: The provided pointers are invalid.
+/// - [`ErrorCode::OperationNotSupported`]: Filesystem manifest is not available.
+///
+pub fn get_fs_manifest(base: &mut usize, size: &mut usize) -> Result<(), Error> {
+    let result: i64 = kcall2!(
+        KcallNumber::GetFsManifest.into(),
+        base as *mut usize as u32,
+        size as *mut usize as u32
+    );
+
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(Error::new(
+            ErrorCode::try_from(result)?,
+            "failed to get filesystem manifest",
+        ))
+    }
+}

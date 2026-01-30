@@ -286,6 +286,56 @@ fn init() {
             panic!("init(): create thread data area (error={error:?})");
         },
     }
+
+    // Initialize HyperlightFS from kernel-exported manifest info.
+    #[cfg(any(target_os = "none", target_os = "nanvix"))]
+    init_hyperlight_fs();
+}
+
+/// Initializes the HyperlightFS by querying the kernel for manifest info.
+///
+/// # Description
+///
+/// This function queries the kernel via a syscall to get the filesystem manifest
+/// location and then initializes the hyperlight-guest filesystem so user-space
+/// code can access files.
+///
+#[cfg(any(target_os = "none", target_os = "nanvix"))]
+fn init_hyperlight_fs() {
+    let mut base: usize = 0;
+    let mut size: usize = 0;
+
+    // Query the kernel for the filesystem manifest info.
+    match ::sys::kcall::pm::get_fs_manifest(&mut base, &mut size) {
+        Ok(()) => {
+            syslog::trace!("init_hyperlight_fs(): base={:#x}, size={:#x}", base, size);
+
+            if base != 0 && size != 0 {
+                if let Err(e) = unsafe { ::hyperlight_guest::fs::init(base as *const u8, size) } {
+                    syslog::error!(
+                        "init_hyperlight_fs(): failed to initialize filesystem: {:?}",
+                        e
+                    );
+                    // Don't panic - filesystem might not be available in all configurations.
+                } else {
+                    syslog::trace!("init_hyperlight_fs(): filesystem initialized successfully");
+                }
+            } else {
+                syslog::trace!(
+                    "init_hyperlight_fs(): no filesystem manifest available (base={:#x}, size={:#x})",
+                    base,
+                    size
+                );
+            }
+        },
+        Err(e) => {
+            syslog::trace!(
+                "init_hyperlight_fs(): failed to get filesystem manifest info: {:?}",
+                e
+            );
+            // Don't panic - filesystem might not be available in all configurations.
+        },
+    }
 }
 
 /// Cleans up system runtime.

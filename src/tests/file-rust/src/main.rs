@@ -64,15 +64,6 @@ use ::syscall::unistd;
 
 #[unsafe(no_mangle)]
 pub fn main() -> Result<(), Error> {
-    let guest_fs_manifest_base: usize = 0x0fa7f000;
-    let guest_fs_manifest_size: usize = 0x00000058;
-    info!(
-        "guest_fs_manifest_base={:#x}, guest_fs_manifest_size={:#x}",
-        guest_fs_manifest_base, guest_fs_manifest_size
-    );
-    // Initialize the hyperlight guest filesystem.
-    syscall::init(guest_fs_manifest_base, guest_fs_manifest_size);
-
     let pathname_buf: &[u8] = b"/README.md\0";
     let pathname: *const c_char = pathname_buf.as_ptr().cast::<c_char>();
 

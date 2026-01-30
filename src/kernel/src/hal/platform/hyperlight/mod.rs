@@ -66,6 +66,20 @@ use ::sys::{
 };
 
 //==================================================================================================
+// Global Variables
+//==================================================================================================
+
+/// Global variables to store the filesystem manifest information.
+/// The kernel sets these during boot, and the GetFsManifest syscall reads them
+/// to provide the info to user-space.
+
+/// Base address of the guest filesystem manifest.
+static mut __HYPERLIGHT_FS_MANIFEST_BASE: u64 = 0;
+
+/// Size of the guest filesystem manifest.
+static mut __HYPERLIGHT_FS_MANIFEST_SIZE: u64 = 0;
+
+//==================================================================================================
 // Structures
 //==================================================================================================
 
@@ -73,6 +87,26 @@ pub struct Platform {
     pub arch: Arch,
     #[cfg(feature = "pit")]
     pub _pit: Pit,
+}
+
+impl Platform {
+    ///
+    /// # Description
+    ///
+    /// Gets the filesystem manifest information.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the base address and size of the filesystem manifest.
+    ///
+    pub fn get_fs_manifest_info() -> (usize, usize) {
+        unsafe {
+            (
+                __HYPERLIGHT_FS_MANIFEST_BASE as usize,
+                __HYPERLIGHT_FS_MANIFEST_SIZE as usize,
+            )
+        }
+    }
 }
 
 //==================================================================================================
@@ -323,6 +357,12 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
         let region: GuestMemoryRegion = (*peb_ptr).guest_fs_manifest;
         (region.ptr, region.size)
     };
+
+    // Store manifest info in global variables for user-space access.
+    unsafe {
+        __HYPERLIGHT_FS_MANIFEST_BASE = guest_fs_manifest_base;
+        __HYPERLIGHT_FS_MANIFEST_SIZE = guest_fs_manifest_size;
+    }
 
     // Print information on guest filesystem manifest.
     info!(

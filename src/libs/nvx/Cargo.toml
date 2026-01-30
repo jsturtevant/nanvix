@@ -23,6 +23,8 @@ compiler_builtins = { workspace = true, optional = true }
 # The sysalloc crate provides a memory allocator implementation for Nanvix.
 # For Linux the allocator is provided by the C library, so sysalloc is not required.
 sysalloc = { workspace = true }
+# HyperlightFS is used for filesystem operations in Nanvix.
+hyperlight-guest = { workspace = true }
 
 [features]
 default = ["staticlib"]

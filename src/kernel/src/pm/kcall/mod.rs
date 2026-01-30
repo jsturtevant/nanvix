@@ -7,6 +7,7 @@
 
 mod capctl;
 mod create_thread;
+mod get_fs_manifest;
 mod get_thread_data_area;
 mod gettime;
 mod join_thread;
@@ -28,6 +29,7 @@ mod wait_cond;
 
 pub use capctl::capctl;
 pub use create_thread::create_thread;
+pub use get_fs_manifest::get_fs_manifest;
 pub use get_thread_data_area::get_thread_data_area;
 pub use gettime::gettime;
 pub use join_thread::join_thread;

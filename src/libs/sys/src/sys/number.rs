@@ -77,6 +77,8 @@ pub enum KcallNumber {
     SetThreadDataArea = KcallNumber::NR_SET_TDA_SYSCALL,
     /// Gets the thread-local storage.
     GetThreadDataArea = KcallNumber::NR_GET_TDA_SYSCALL,
+    /// Gets the filesystem manifest info.
+    GetFsManifest = KcallNumber::NR_GET_FS_MANIFEST_SYSCALL,
     /// Invalid kernel call.
     Invalid = KcallNumber::NR_INVALID_SYSCALL,
 }
@@ -114,6 +116,7 @@ impl KcallNumber {
     const NR_SLEEP_SYSCALL: u32 = 29;
     const NR_SET_TDA_SYSCALL: u32 = 30;
     const NR_GET_TDA_SYSCALL: u32 = 31;
+    const NR_GET_FS_MANIFEST_SYSCALL: u32 = 32;
     const NR_INVALID_SYSCALL: u32 = u32::MAX;
 }
 
@@ -153,6 +156,7 @@ impl From<u32> for KcallNumber {
             Self::NR_SLEEP_SYSCALL => KcallNumber::Sleep,
             Self::NR_SET_TDA_SYSCALL => KcallNumber::SetThreadDataArea,
             Self::NR_GET_TDA_SYSCALL => KcallNumber::GetThreadDataArea,
+            Self::NR_GET_FS_MANIFEST_SYSCALL => KcallNumber::GetFsManifest,
             _ => KcallNumber::Invalid,
         }
     }
@@ -194,6 +198,7 @@ impl From<KcallNumber> for u32 {
             KcallNumber::Sleep => KcallNumber::NR_SLEEP_SYSCALL,
             KcallNumber::SetThreadDataArea => KcallNumber::NR_SET_TDA_SYSCALL,
             KcallNumber::GetThreadDataArea => KcallNumber::NR_GET_TDA_SYSCALL,
+            KcallNumber::GetFsManifest => KcallNumber::NR_GET_FS_MANIFEST_SYSCALL,
             KcallNumber::Invalid => KcallNumber::NR_INVALID_SYSCALL,
         }
     }
