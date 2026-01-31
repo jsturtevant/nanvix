@@ -5,23 +5,15 @@
 // Imports
 //==================================================================================================
 
-use crate::{
-    safe::RawFileDescriptor,
-    unistd::message::{
-        WriteRequest,
-        WriteResponse,
-    },
-    LinuxDaemonMessage,
-    LinuxDaemonMessageHeader,
+use crate::safe::RawFileDescriptor;
+use ::alloc::{
+    borrow::Cow,
+    string::String,
 };
-use ::core::cmp;
-use ::sys::{
-    error::{
-        Error,
-        ErrorCode,
-    },
-    ipc::Message,
-    pm::ThreadIdentifier,
+use ::hyperlight_guest::exit::debug_print;
+use ::sys::error::{
+    Error,
+    ErrorCode,
 };
 use ::sysapi::{
     sys_types::c_size_t,
@@ -69,10 +61,17 @@ pub fn write(fd: RawFileDescriptor, buffer: &[u8]) -> Result<c_size_t, Error> {
         ::syslog::trace!("write(): fd={:?}, buffer.len={:?}", fd, buffer.len());
     }
 
+    // Handle stdout/stderr via debug_print (direct to host, bypasses IPC).
+    if fd == STDOUT_FILENO || fd == STDERR_FILENO {
+        let msg: Cow<'_, str> = String::from_utf8_lossy(buffer);
+        debug_print(&msg);
+        return Ok(buffer.len() as c_size_t);
+    }
+
     // Check if this is a regular file (not stdin/stdout/stderr).
     // Return EROFS since the Hyperlight guest filesystem is read-only.
     // TODO: Implement via File::write() when FAT filesystem support is added.
-    if fd != STDIN_FILENO && fd != STDOUT_FILENO && fd != STDERR_FILENO {
+    if fd != STDIN_FILENO {
         ::syslog::warn!(
             "write(): read-only filesystem, cannot write to fd={} (buffer.len={})",
             fd,
@@ -81,67 +80,7 @@ pub fn write(fd: RawFileDescriptor, buffer: &[u8]) -> Result<c_size_t, Error> {
         return Err(Error::new(ErrorCode::ReadOnlyFileSystem, "read-only filesystem"));
     }
 
-    let tid: ThreadIdentifier = ::sys::kcall::pm::gettid()?;
-
-    let mut total_written: c_size_t = 0;
-    let mut offset: usize = 0;
-
-    while offset < buffer.len() {
-        let chunk_size: usize = cmp::min(WriteRequest::BUFFER_SIZE, buffer.len() - offset);
-        let mut chunk: [u8; WriteRequest::BUFFER_SIZE] = [0; WriteRequest::BUFFER_SIZE];
-        chunk[..chunk_size].copy_from_slice(&buffer[offset..offset + chunk_size]);
-
-        // Build request and send it.
-        let request: Message = WriteRequest::build(tid, fd, chunk_size as c_size_t, chunk);
-        ::sys::kcall::ipc::send(&request)?;
-
-        // Receive response.
-        let response: Message = ::sys::kcall::ipc::recv()?;
-
-        // Check whether system call succeeded or not.
-        if response.status != 0 {
-            ::syslog::error!(
-                "write(): failed (fd={:?}, buffer.len={:?}, error_code={:?})",
-                fd,
-                buffer.len(),
-                { response.status }
-            );
-
-            match ErrorCode::try_from(response.status) {
-                // Succeeded to parse error code.
-                Ok(error_code) => return Err(Error::new(error_code, "write() failed")),
-                // Failed to parse error code, return generic error.
-                Err(error) => {
-                    ::syslog::error!("write(): failed to convert error code (error={:?})", error);
-                    return Err(Error::new(ErrorCode::TryAgain, "write() failed"));
-                },
-            }
-        } else {
-            // System call succeeded, parse response.
-            let message: LinuxDaemonMessage = LinuxDaemonMessage::try_from_bytes(response.payload)?;
-            // Response was successfully parsed.
-            match message.header {
-                // Response was successfully parsed.
-                LinuxDaemonMessageHeader::WriteResponse => {
-                    // Parse response.
-                    let response: WriteResponse = WriteResponse::from_bytes(message.payload);
-
-                    // Update total written count.
-                    total_written += response.count as c_size_t;
-                    offset += chunk_size;
-                },
-                header => {
-                    ::syslog::error!(
-                        "write(): failed to parse response (fd={:?}, buffer.len={:?}, header={:?})",
-                        fd,
-                        buffer.len(),
-                        header
-                    );
-                    return Err(Error::new(ErrorCode::InvalidMessage, "failed to parse response"));
-                },
-            }
-        }
-    }
-
-    Ok(total_written)
+    // Writing to stdin is not allowed.
+    ::syslog::error!("write(): cannot write to stdin (fd={})", fd);
+    Err(Error::new(ErrorCode::BadFile, "cannot write to stdin"))
 }

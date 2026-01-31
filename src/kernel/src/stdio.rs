@@ -8,7 +8,6 @@
 use crate::{
     hal::platform,
     PERF_IKC_MESSAGES_RECEIVED,
-    PERF_IKC_MESSAGES_SENT,
 };
 use ::core::{
     mem,
@@ -43,11 +42,64 @@ use ::sys::{
 /// Upon success, empty is returned. Upon failure, an error is returned instead.
 ///
 pub fn write(message: Message) -> Result<(), Error> {
-    // Checks if message type is not supported.
+    // Only handle IKC messages.
     if { message.message_type } != MessageType::Ikc {
         let reason: &str = "unsupported message type";
         error!("{reason}");
         return Err(Error::new(ErrorCode::InvalidArgument, reason));
+    }
+
+    // Parse the message payload to check if it's a stdout/stderr write.
+    // The payload contains a LinuxDaemonMessage which has a header and payload.
+    // For WriteRequest: header (1 byte) + fd (4 bytes) + count (4 bytes) + buffer.
+    // We need to check if fd is 1 (stdout) or 2 (stderr).
+    const HEADER_OFFSET: usize = 0;
+    const FD_OFFSET: usize = 1; // After 1-byte header.
+    const STDOUT_FILENO: i32 = 1;
+    const STDERR_FILENO: i32 = 2;
+    const WRITE_REQUEST_HEADER: u8 = 0; // LinuxDaemonMessageHeader::WriteRequest = 0.
+
+    let payload: &[u8] = &message.payload;
+
+    // Extract header from the payload (little-endian u16 at offset 0).
+    let header_bytes: [u8; 2] = [payload[HEADER_OFFSET], payload[HEADER_OFFSET + 1]];
+    let header_value: u16 = u16::from_le_bytes(header_bytes);
+
+    // Log every IKC message with its header type for debugging.
+    trace!(
+        "stdio::write(): IKC message header={}, source={:?}, dest={:?}",
+        header_value,
+        { message.source },
+        { message.destination }
+    );
+
+    // Check if this is a WriteRequest (header byte == 0).
+    if payload[HEADER_OFFSET] != WRITE_REQUEST_HEADER {
+        // Not a WriteRequest - drop the message (other IPC is disabled).
+        trace!(
+            "stdio::write(): dropping non-WriteRequest message (header={})",
+            header_value
+        );
+        return Ok(());
+    }
+
+    // Extract fd from the payload (little-endian i32 at offset 1).
+    let fd_bytes: [u8; 4] = [
+        payload[FD_OFFSET],
+        payload[FD_OFFSET + 1],
+        payload[FD_OFFSET + 2],
+        payload[FD_OFFSET + 3],
+    ];
+    let fd: i32 = i32::from_le_bytes(fd_bytes);
+
+    // Only forward stdout and stderr writes to the host.
+    if fd != STDOUT_FILENO && fd != STDERR_FILENO {
+        // Not stdout/stderr - drop the message (other IPC is disabled).
+        trace!(
+            "stdio::write(): dropping WriteRequest for non-stdout/stderr (fd={})",
+            fd
+        );
+        return Ok(());
     }
 
     let bytes: [u8; mem::size_of::<Message>()] = message.to_bytes();
@@ -58,8 +110,6 @@ pub fn write(message: Message) -> Result<(), Error> {
         // NOTE: we assume that page is tagged as writethrough-enabled and cache-disabled.
         platform::vmbus_write(&bytes as *const u8);
     }
-
-    PERF_IKC_MESSAGES_SENT.fetch_add(1, Ordering::Relaxed);
 
     Ok(())
 }

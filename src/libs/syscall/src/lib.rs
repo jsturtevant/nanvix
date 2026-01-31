@@ -375,20 +375,37 @@ impl LinuxDaemonMessage {
 }
 
 //==================================================================================================
+// Filesystem Initialization
+//==================================================================================================
 
+/// Initializes the filesystem with the given manifest base and size.
+///
+/// # Description
+///
+/// This function initializes the HyperlightFS with the provided manifest
+/// base address and size. It should be called once during process startup.
+///
+/// # Note
+///
+/// For most applications, filesystem initialization is handled automatically
+/// by the `nvx` runtime. This function is provided for cases where manual
+/// initialization is needed (e.g., tests).
+///
+/// # Parameters
+///
+/// - `base`: The base address of the filesystem manifest.
+/// - `size`: The size of the filesystem manifest.
+///
 pub fn init(base: usize, size: usize) {
     #[cfg(feature = "syscall")]
-    ::syslog::trace!(
-        "syscall::init(): base={:#x}, size={:#x}",
-        base, size
-    );
+    ::syslog::trace!("syscall::init(): base={:#x}, size={:#x}", base, size);
 
     unsafe {
         if let Err(e) = hyperlight_guest::fs::init(base as *const u8, size as usize) {
             let reason: &str = "failed to initialize guest filesystem";
             #[cfg(feature = "syscall")]
             ::syslog::error!("syscall::init(): {reason}: {e}");
-            panic!("parse_bootinfo(): {reason}: {e}");
+            panic!("syscall::init(): {reason}: {e}");
         }
     }
     #[cfg(feature = "syscall")]

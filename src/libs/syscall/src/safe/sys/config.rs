@@ -44,6 +44,7 @@ use ::sysapi::{
 ///
 /// System configuration name.
 ///
+#[derive(Debug)]
 #[repr(i32)]
 pub enum SysConfigName {
     /// Maximum length of arguments for `exec` functions. (SC_ARG_MAX)

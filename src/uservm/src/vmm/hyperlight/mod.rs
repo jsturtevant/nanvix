@@ -146,19 +146,24 @@ impl Vmm {
                     // PEB, I/O buffers, host fxn defs, guard pages, etc.
                     let reserved_pages: usize = 11 * PAGE_SIZE;
 
+                    // Calculate FAT filesystem size from fat_images.
+                    let fat_images: &Vec<(String, String)> = &args.fat_images;
+                    let fat_size: usize = calculate_fat_images_size(fat_images)?;
+
                     let required_memory: usize = kernel_size
                         + initrd_size
                         + (heap_size + stack_size)
                         + reserved_pages
                         + ::config::hyperlight::INITRD_SIZE_BYTES
-                        + initrd_args_bytes.len();
+                        + initrd_args_bytes.len()
+                        + fat_size;
 
                     // Check if required memory exceeds memory size.
                     if memory_size <= required_memory {
                         let reason: &str = "not enough memory";
                         error!(
                             "new(): {reason} ({required_memory} bytes required, {memory_size} \
-                             bytes total)"
+                             bytes total, fat_size={fat_size})"
                         );
                         return Err(anyhow::anyhow!(reason));
                     }
@@ -731,6 +736,38 @@ fn apply_mounts_to_prebuilt_fat(
     let reason: String = "no suitable FAT mount found for applying mounts".to_string();
     error!("apply_mounts_to_prebuilt_fat(): {reason}");
     Err(anyhow::anyhow!(reason))
+}
+
+///
+/// # Description
+///
+/// Calculates the total size of all FAT images to be mounted.
+///
+/// # Parameters
+///
+/// - `fat_images`: A slice of (host_path, mount_point) tuples for FAT images.
+///
+/// # Returns
+///
+/// Upon successful completion, this function returns the total size in bytes of all FAT images.
+/// Otherwise, it returns an error.
+///
+fn calculate_fat_images_size(fat_images: &[(String, String)]) -> Result<usize> {
+    let mut total_size: usize = 0;
+
+    for (fat_path, _mount_point) in fat_images {
+        let metadata: std::fs::Metadata = std::fs::metadata(fat_path).map_err(|error| {
+            let reason: String =
+                format!("failed to get metadata for FAT image (path={fat_path}, error={error})");
+            error!("calculate_fat_images_size(): {reason}");
+            anyhow::anyhow!(reason)
+        })?;
+
+        total_size = total_size.saturating_add(metadata.len() as usize);
+    }
+
+    debug!("calculate_fat_images_size(): total FAT size = {} bytes", total_size);
+    Ok(total_size)
 }
 
 ///

@@ -61,6 +61,18 @@ pub fn send(pm: &mut ProcessManager, args: &KcallArgs) -> KcallResult {
         error!("{reason:?} (message={message:?})");
     }
 
+    // Log IKC messages for debugging (extract header from payload).
+    if { message.message_type } == MessageType::Ikc {
+        let header_bytes: [u8; 2] = [message.payload[0], message.payload[1]];
+        let header_value: u16 = u16::from_le_bytes(header_bytes);
+        trace!(
+            "send(): IKC message from tid={:?}, pid={:?}, header={}",
+            src_tid,
+            src_pid,
+            header_value
+        );
+    }
+
     // Route message based on its type.
     match message.message_type {
         // Inter-kernel communication.
@@ -97,11 +109,20 @@ pub unsafe fn recv(
     msg: usize,
 ) -> Result<(), SleepError> {
     if pid != ProcessIdentifier::INITD {
-        trace!("pid={:?}", pid);
+        trace!("recv(): blocking tid={:?}, pid={:?}", tid, pid);
     }
 
     match EventManager::wait(tid, pid) {
         Ok(message) => {
+            if pid != ProcessIdentifier::INITD {
+                trace!(
+                    "recv(): unblocked tid={:?}, pid={:?}, msg_type={:?}, status={}",
+                    tid,
+                    pid,
+                    { message.message_type },
+                    { message.status }
+                );
+            }
             pm::copy_to_user(ProcessManager::get_mut(), pid, msg as *mut Message, &message)
                 .map_err(SleepError::Generic)
         },

@@ -24,7 +24,7 @@ use ::sys::error::{
 //==================================================================================================
 
 pub const NUM_OF_SLABS: usize = 10;
-const SLAB_COUNT: usize = 32;
+const SLAB_COUNT: usize = 64; // Increased from 32 to support FAT filesystem initialization.
 pub const MIN_SLAB_SIZE: usize = SLAB_COUNT * mem::PAGE_SIZE;
 pub const MIN_HEAP_SIZE: usize = NUM_OF_SLABS * MIN_SLAB_SIZE;
 

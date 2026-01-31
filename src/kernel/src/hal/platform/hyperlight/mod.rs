@@ -100,12 +100,7 @@ impl Platform {
     /// A tuple containing the base address and size of the filesystem manifest.
     ///
     pub fn get_fs_manifest_info() -> (usize, usize) {
-        unsafe {
-            (
-                __HYPERLIGHT_FS_MANIFEST_BASE as usize,
-                __HYPERLIGHT_FS_MANIFEST_SIZE as usize,
-            )
-        }
+        unsafe { (__HYPERLIGHT_FS_MANIFEST_BASE as usize, __HYPERLIGHT_FS_MANIFEST_SIZE as usize) }
     }
 }
 
@@ -198,6 +193,7 @@ pub unsafe fn puts(message: &str) {
 /// - It does not prevent concurrent access to the standard output device.
 ///
 #[cfg(feature = "stdio")]
+#[allow(dead_code)]
 pub unsafe fn vmbus_write(addr: *const u8) {
     use crate::PERF_VMBUS_WRITE;
 
@@ -486,15 +482,25 @@ pub fn init(
     // Register reserved area for heap padding.
     let heap_padding_base: usize = output_data_base + OUTPUT_DATA_BUFFER_SIZE;
     debug!("heap_padding_base={:#010x}", heap_padding_base);
-    let heap_padding_size: usize = memory_layout::KPOOL_BASE.into_raw_value() - heap_padding_base;
-    let heap_padding: MemoryRegion<VirtualAddress> = MemoryRegion::new(
-        "heap padding",
-        VirtualAddress::from_raw_value(heap_padding_base),
-        heap_padding_size,
-        MemoryRegionType::Reserved,
-        AccessPermission::RDONLY,
-    )?;
-    memory_regions.push_back(heap_padding);
+    let kpool_base: usize = memory_layout::KPOOL_BASE.into_raw_value();
+    if heap_padding_base >= kpool_base {
+        // No padding needed - heap_padding_base already at or past kpool base.
+        // This can happen with larger kernel builds (e.g., trace logging enabled).
+        debug!(
+            "heap_padding: skipped (heap_padding_base={:#010x} >= kpool_base={:#010x})",
+            heap_padding_base, kpool_base
+        );
+    } else {
+        let heap_padding_size: usize = kpool_base - heap_padding_base;
+        let heap_padding: MemoryRegion<VirtualAddress> = MemoryRegion::new(
+            "heap padding",
+            VirtualAddress::from_raw_value(heap_padding_base),
+            heap_padding_size,
+            MemoryRegionType::Reserved,
+            AccessPermission::RDONLY,
+        )?;
+        memory_regions.push_back(heap_padding);
+    }
 
     // Register kpool guard page.
     let kpool_guard_base: usize =

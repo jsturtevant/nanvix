@@ -125,6 +125,7 @@ impl ProcessEnvironmentBlock {
     ///
     /// # Safety
     /// This function is unsafe because it uses a static mutable variable.
+    #[allow(dead_code)]
     pub unsafe fn vmbus_write(data: &[u8]) -> Result<(), Error> {
         let failure_reason: &'static str = "vmbus_write: failed to write data";
         let count = GUEST_HANDLE

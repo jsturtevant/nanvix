@@ -9,8 +9,13 @@ use crate::{
     errno::__errno_location,
     ErrorCode,
 };
+use ::alloc::{
+    borrow::Cow,
+    string::String,
+};
 use ::core::slice;
 use ::hyperlight_guest::{
+    exit::debug_print,
     fs::{
         self,
         get_fd_entry,
@@ -97,20 +102,13 @@ pub unsafe extern "C" fn write(fd: c_int, buffer: *const c_void, count: c_size_t
         return -1;
     }
 
-    // Handle stdout/stderr via existing syscall (VmbusWrite).
+    // Handle stdout/stderr via debug_print (direct to host, bypasses IPC).
     if fd == STDOUT_FILENO || fd == STDERR_FILENO {
         let buffer: &[u8] = slice::from_raw_parts(buffer as *const u8, count as usize);
-        match crate::unistd::syscall::write(fd, buffer) {
-            Ok(bytes_written) => return bytes_written as c_ssize_t,
-            Err(error) => {
-                ::syslog::error!(
-                    "write(): {error:?} (fd={fd:?}, buffer={:?}, count={count:?})",
-                    buffer.as_ptr()
-                );
-                *__errno_location() = error.code.get();
-                return -1;
-            },
-        }
+        // Convert bytes to string for debug_print. If invalid UTF-8, use lossy conversion.
+        let msg: Cow<'_, str> = String::from_utf8_lossy(buffer);
+        debug_print(&msg);
+        return count as c_ssize_t;
     }
 
     // Handle stdin (invalid for write).

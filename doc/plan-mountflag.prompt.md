@@ -9,6 +9,8 @@ This plan describes two complementary filesystem mounting approaches for Hyperli
 
 The `-mount` flag copies files at sandbox startup, while `-fat` uses pre-built FAT images created out-of-band via `scripts/create-python-fat.sh` or similar tools.
 
+** important ** all all IKC messages are disabled except stdout/err on purpose.  All file system calls should be done with in the vm.
+
 ## Background: How Arguments Flow
 
 Understanding the current system flow:
@@ -243,6 +245,7 @@ rm -rf logs ; RUST_LOG=debug ./bin/nanvixd.elf -fat lib/fat/README.md.fat:/ -- b
 
 Then run 
 
+./z build --with-cached-options -- all LOG_LEVEL=trace
 rm -rf logs ; RUST_LOG=trace ./bin/nanvixd.elf \
   -fat lib/fat/python3.12.fat:/ \
   -mount src/user/hello-python/__main__.py:/__main__.py \
