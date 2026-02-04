@@ -245,7 +245,9 @@ rm -rf logs ; RUST_LOG=debug ./bin/nanvixd.elf -fat lib/fat/README.md.fat:/ -- b
 
 Then run 
 
-./z build --with-cached-options -- all LOG_LEVEL=trace
+#./z build --with-cached-options -- all LOG_LEVEL=trace
+./z build -- BUILD_OPT=yes LOG_LEVEL=info MACHINE=hyperlight all
+./scripts/create-fat.sh sysroot-debug/lib/python3.12
 rm -rf logs ; RUST_LOG=trace ./bin/nanvixd.elf \
   -fat lib/fat/python3.12.fat:/ \
   -mount src/user/hello-python/__main__.py:/__main__.py \

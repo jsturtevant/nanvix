@@ -5,11 +5,12 @@
 # Creates a FAT image containing specified files or directories.
 #
 # Usage:
-#   ./scripts/create-fat.sh <source> <guest_path> [output]
+#   ./scripts/create-fat.sh <source> [guest_path] [output]
 #
 # Arguments:
 #   source     - Host file or directory to bundle
 #   guest_path - Path where content will appear in the FAT image
+#                (default: /<basename of source>)
 #   output     - Output FAT image path (default: lib/fat/<basename>.fat)
 #
 # Requirements:
@@ -17,35 +18,36 @@
 #   - mtools (provides mcopy, mmd)
 #
 # Examples:
-#   # Bundle a single file
-#   ./scripts/create-fat.sh README.md /README.md
+#   # Bundle Python stdlib (defaults to /python3.12)
+#   ./scripts/create-fat.sh sysroot-debug/lib/python3.12
 #
-#   # Bundle Python stdlib
+#   # Bundle with explicit guest path
 #   ./scripts/create-fat.sh sysroot-debug/lib/python3.12 /usr/lib/python3.12
 #
 #   # Bundle with custom output path
-#   ./scripts/create-fat.sh sysroot-debug/lib/python3.12 /usr/lib/python3.12 my-python.fat
+#   ./scripts/create-fat.sh sysroot-debug/lib/python3.12 /python3.12 my-python.fat
 
 set -e
 
 # Parse arguments.
-if [ $# -lt 2 ]; then
-    echo "Usage: $0 <source> <guest_path> [output]" >&2
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <source> [guest_path] [output]" >&2
     echo "" >&2
     echo "Arguments:" >&2
     echo "  source     - Host file or directory to bundle" >&2
     echo "  guest_path - Path where content will appear in the FAT image" >&2
+    echo "               (default: /<basename of source>)" >&2
     echo "  output     - Output FAT image path (default: lib/fat/<basename>.fat)" >&2
     echo "" >&2
     echo "Examples:" >&2
-    echo "  $0 README.md /README.md" >&2
+    echo "  $0 sysroot-debug/lib/python3.12" >&2
     echo "  $0 sysroot-debug/lib/python3.12 /usr/lib/python3.12" >&2
     exit 1
 fi
 
 SOURCE="$1"
-GUEST_PATH="$2"
 BASENAME=$(basename "$SOURCE")
+GUEST_PATH="${2:-/$BASENAME}"
 OUTPUT="${3:-lib/fat/${BASENAME}.fat}"
 
 # Validate source exists.
