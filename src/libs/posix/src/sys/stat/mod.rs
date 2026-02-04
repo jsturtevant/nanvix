@@ -330,8 +330,11 @@ pub unsafe extern "C" fn lstat(pathname: *const c_char, statbuf: *mut sys_stat::
 /// It is safe to call this function if the following conditions are met:
 /// - `pathname` points to a valid null-terminated C string.
 ///
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn mkdir(pathname: *const c_char, mode: mode_t) -> c_int {
+/// Note: The C-level `mkdir` symbol is provided by the syscall crate's bindings
+/// (which uses hyperlight_guest::fs for VFS support). This function is kept for
+/// internal use within the posix crate.
+///
+pub unsafe fn posix_mkdir(pathname: *const c_char, mode: mode_t) -> c_int {
     ::syslog::trace!("mkdir(): pathname={:?}, mode={}", pathname, mode);
     mkdirat(AT_FDCWD, pathname, mode)
 }

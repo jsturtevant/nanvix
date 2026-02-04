@@ -43,6 +43,8 @@ pub enum MemoryRegionType {
     Mmio,
     /// Bad memory.
     Bad,
+    /// User-shared memory (accessible from user-space).
+    UserShared,
 }
 //==================================================================================================
 // Memory Region

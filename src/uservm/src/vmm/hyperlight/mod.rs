@@ -247,12 +247,16 @@ impl Vmm {
         let fat_images: &[(String, String)] = &args.fat_images;
 
         // Build Hyperlight filesystem image with all FAT mounts and file mounts.
+        let t_fs = std::time::Instant::now();
         let fs_image: HyperlightFSImage =
             build_filesystem(fat_images, mounts, ramfs_filename.as_ref())?;
+        eprintln!("[TIMING] setup_fat_filesystem: {:?}", t_fs.elapsed());
 
         // Creates Hyperlight sandbox.
+        let t_sandbox = std::time::Instant::now();
         let mut sandbox: UninitializedSandbox =
             UninitializedSandbox::new(guest_env, Some(config))?.with_hyperlight_fs(fs_image);
+        eprintln!("[TIMING] UninitializedSandbox::new: {:?}", t_sandbox.elapsed());
         let manager: SandboxMemoryManager<ExclusiveSharedMemory> = sandbox.mgr.clone();
         let vmem: Arc<Mutex<VirtualMemory>> = Arc::new(Mutex::new(VirtualMemory {
             manager: manager.clone(),
@@ -333,7 +337,9 @@ impl Vmm {
         };
 
         // Run the sandbox.
+        let t_evolve = std::time::Instant::now();
         let result: Result<MultiUseSandbox, HyperlightError> = uninit.evolve();
+        eprintln!("[TIMING] sandbox.evolve(): {:?}", t_evolve.elapsed());
 
         // Communicate shutdown to orchestrator.
         if let Err(error) = self

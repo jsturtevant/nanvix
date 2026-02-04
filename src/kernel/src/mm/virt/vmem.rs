@@ -310,6 +310,94 @@ impl Vmem {
         Err(Error::new(ErrorCode::NoSuchEntry, reason))
     }
 
+    /// Maps a kernel page to the target virtual address space with user-accessible permissions.
+    ///
+    /// # Description
+    ///
+    /// This function is similar to `map_kpage` but marks the page as accessible from user-space.
+    /// This is needed for shared memory regions like the filesystem manifest that the kernel
+    /// sets up but user-space needs to read.
+    ///
+    /// # Parameters
+    /// - `kpage`: Kernel page to be mapped.
+    /// - `vaddr`: Virtual address of the target page.
+    /// - `access`: Access permissions for the page.
+    ///
+    /// # Returns
+    ///
+    /// Upon success, empty is returned. Upon failure, an error code is returned instead.
+    ///
+    pub fn map_kpage_user<T: Fn() -> Result<PageTable<PageTableStorage>, Error>>(
+        &mut self,
+        kpage: KernelPage,
+        vaddr: PageAligned<VirtualAddress>,
+        access: AccessPermission,
+        page_table_allocator: T,
+    ) -> Result<(), Error> {
+        let pt_vaddr: PageTableAddress = PageTableAddress::new(PageTableAligned::from_raw_value(
+            ::sys::mm::align_down(vaddr.into_raw_value(), PGTAB_ALIGNMENT),
+        )?);
+
+        // Get the corresponding page directory entry.
+        let pde: PageDirectoryEntry = match self.pgdir.read_pde(pt_vaddr) {
+            Some(pde) => pde,
+            None => {
+                let reason: &str = "failed to read page directory entry";
+                error!("{reason}");
+                return Err(Error::new(ErrorCode::TryAgain, reason));
+            },
+        };
+
+        // Check if page table does not exist.
+        if !pde.is_present() {
+            let page_table: PageTable<PageTableStorage> = page_table_allocator()?;
+
+            // Map page table with user-accessible permissions.
+            // supervisor = false means user can access (UserSupervisorFlag::User)
+            self.pgdir.map(
+                pt_vaddr,
+                page_table.physical_address()?,
+                false, // supervisor = false for user-space accessibility
+                AccessPermission::RDWR,
+            )?;
+
+            // Add page table to the list of kernel page tables.
+            self.kernel_page_tables
+                .push_back(Rc::new(RefCell::new((pt_vaddr, page_table))));
+        };
+
+        // Get corresponding page table.
+        for entry in self.kernel_page_tables.iter_mut() {
+            if entry.borrow().0.into_raw_value() == pt_vaddr.into_raw_value() {
+                // Determine if the page should be writable based on access permissions.
+                let writable: bool = access.is_writable();
+
+                // Map the page with user-accessible permissions.
+                // For page table: supervisor = false means user can access
+                entry.borrow_mut().1.map(
+                    PageAddress::new(vaddr),
+                    kpage.frame_address(),
+                    false,    // supervisor = false for user-space accessibility
+                    writable, // writable based on access permissions
+                    false,    // cache disabled
+                    access,
+                )?;
+
+                // Add the kernel page to the list of kernel pages.
+                self.kernel_pages.push_back(Rc::new(RefCell::new(kpage)));
+
+                // Reload page directory to force a TLB flush.
+                self.load()?;
+
+                return Ok(());
+            }
+        }
+
+        let reason: &str = "page table not found";
+        error!("{reason}");
+        Err(Error::new(ErrorCode::NoSuchEntry, reason))
+    }
+
     /// Maps a page to the target virtual address space.
     pub fn map<T: Fn() -> Result<PageTable<PageTableStorage>, Error>>(
         &mut self,

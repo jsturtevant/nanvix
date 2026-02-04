@@ -16,7 +16,6 @@ mod vmem;
 use crate::hal::{
     arch::x86::mem::mmu::page_table::PageTable,
     mem::{
-        AccessPermission,
         Address,
         FrameAddress,
         MemoryRegionType,
@@ -189,14 +188,20 @@ pub fn init(
                     (PageTableAddress::new(page_table_addr), page_table)
                 };
 
-            // FIXME: do not be so open about permissions and caching.
+            // Determine if this is a user-shared region that needs user-accessible permissions.
+            let is_user_shared: bool = region.typ() == MemoryRegionType::UserShared;
+
+            // Map the page with appropriate permissions.
+            // For supervisor parameter: false = user can access, true = kernel-only.
+            // For UserShared regions, set supervisor=false to allow user access.
+            let supervisor: bool = !is_user_shared;
             page_table.map(
                 PageAddress::new(PageAligned::from_raw_value(raw_vaddr)?),
                 paddr,
-                false,
-                true,
-                false,
-                AccessPermission::RDWR,
+                supervisor, // false for UserShared (user accessible), true otherwise (kernel-only)
+                true,       // writethrough
+                false,      // cache disabled
+                region.perm(),
             )?;
             if raw_vaddr == (config::kernel::MEMORY_SIZE - mem::PAGE_SIZE) {
                 break;

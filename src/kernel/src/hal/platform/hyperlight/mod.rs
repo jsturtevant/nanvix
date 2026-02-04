@@ -335,15 +335,13 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
     );
 
     // Create a memory region for the guest filesystem.
-    // NOTE: Uses Reserved (not Mmio) because Hyperlight identity-maps all guest memory.
-    // MMIO regions require special address translation in the kernel's VMM, but Hyperlight's
-    // guest filesystem is in regular identity-mapped memory, so we mark it as Reserved.
+    // NOTE: Uses UserShared because user-space needs to access the filesystem data.
     // Uses RDWR permission because FAT mounts within this region need write access.
     let guest_fs_region: MemoryRegion<VirtualAddress> = MemoryRegion::new(
         "guest filesystem",
         VirtualAddress::from_raw_value(guest_fs_region_base as usize),
         guest_fs_region_size as usize,
-        MemoryRegionType::Reserved,
+        MemoryRegionType::UserShared,
         AccessPermission::RDWR,
     )?;
     memory_regions.push_back(guest_fs_region);
@@ -367,12 +365,12 @@ pub fn parse_bootinfo(magic: u32, info: usize) -> Result<BootInfo, Error> {
     );
 
     // Create a memory region for the guest filesystem manifest.
-    // NOTE: Uses Reserved (not Mmio) because Hyperlight identity-maps all guest memory.
+    // NOTE: Uses UserShared because user-space needs to read the manifest to parse the filesystem.
     let guest_fs_manifest: MemoryRegion<VirtualAddress> = MemoryRegion::new(
         "guest filesystem manifest",
         VirtualAddress::from_raw_value(guest_fs_manifest_base as usize),
         guest_fs_manifest_size as usize,
-        MemoryRegionType::Reserved,
+        MemoryRegionType::UserShared,
         AccessPermission::RDONLY,
     )?;
     memory_regions.push_back(guest_fs_manifest);

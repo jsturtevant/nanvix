@@ -45,6 +45,7 @@ use crate::{
     hal::{
         arch::x86::mem::mmu::page_table::PageTable,
         mem::{
+            AccessPermission,
             Address,
             MemoryRegion,
             MemoryRegionType,
@@ -216,9 +217,16 @@ fn parse_memory_regions(
         LinkedList::new();
 
     while let Some(region) = memory_regions.pop_front() {
-        if region.typ() == MemoryRegionType::Reserved || region.typ() == MemoryRegionType::Mmio {
+        if region.typ() == MemoryRegionType::Reserved
+            || region.typ() == MemoryRegionType::Mmio
+            || region.typ() == MemoryRegionType::UserShared
+        {
             if PhysicalAddress::from_virtual_address(region.start()).is_ok() {
-                if region.typ() != MemoryRegionType::Usable {
+                // UserShared regions don't need to be tracked in physical memory manager.
+                // They are pre-allocated by the hypervisor and only need page table mappings.
+                if region.typ() != MemoryRegionType::Usable
+                    && region.typ() != MemoryRegionType::UserShared
+                {
                     match TruncatedMemoryRegion::from_virtual_memory_region(region.clone()) {
                         Ok(region) => physical_memory_regions.push_back(region),
                         // TODO: make memory regions a truncated list so round logic is handled when region is created.
@@ -275,6 +283,8 @@ pub fn init(
     // Map virtual memory regions that lie outside the physical memory.
     while let Some(region) = other_virtual_memory_regions.pop_front() {
         info!("mapping: {:?}", region);
+        let is_user_shared: bool = region.typ() == MemoryRegionType::UserShared;
+        let access: AccessPermission = region.perm();
         let mut vaddr: PageAligned<VirtualAddress> = region.start();
         let end: VirtualAddress =
             VirtualAddress::new(region.start().into_raw_value() + (region.size() - 1));
@@ -290,7 +300,12 @@ pub fn init(
                 Ok(page_table)
             };
 
-            vmem.map_kpage(kpage, vaddr, page_table_allocator)?;
+            // Use user-accessible mapping for UserShared regions, kernel-only otherwise.
+            if is_user_shared {
+                vmem.map_kpage_user(kpage, vaddr, access, page_table_allocator)?;
+            } else {
+                vmem.map_kpage(kpage, vaddr, page_table_allocator)?;
+            }
 
             match vaddr.into_raw_value().checked_add(mem::PAGE_SIZE) {
                 Some(raw_addr) => vaddr = PageAligned::from_raw_value(raw_addr)?,
