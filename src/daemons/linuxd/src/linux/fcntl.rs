@@ -144,6 +144,7 @@ use ::syscall::{
 use ::syslog::{
     debug,
     error,
+    info,
     trace,
     warn,
 };
@@ -182,7 +183,7 @@ pub fn do_openat<T>(
         Err(_) => return Ok(vec![crate::build_error(tid, ErrorCode::InvalidMessage)]),
     };
 
-    debug!(
+    info!(
         "libc::openat(): dirfd={:?}, pathname={pathname:?}, flags={:?}, mode={:?}",
         dirfd.inner(),
         flags.inner(),

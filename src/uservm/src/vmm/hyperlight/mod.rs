@@ -50,7 +50,6 @@ use ::sys::error::ErrorCode;
 use ::syslog::{
     debug,
     error,
-    info,
 };
 use ::tokio::{
     runtime::Handle,
@@ -244,27 +243,12 @@ impl Vmm {
         config.set_stack_size(stack_size_u64);
 
         // Get references to mount configurations.
-        let mounts: &Vec<(String, String)> = &args.mounts;
-        let fat_images: &Vec<(String, String)> = &args.fat_images;
+        let mounts: &[(String, String)] = &args.mounts;
+        let fat_images: &[(String, String)] = &args.fat_images;
 
-        // Build Hyperlight filesystem image.
-        // Strategy: Use pre-built FAT images if provided, otherwise create an empty FAT at root.
-        let use_prebuilt_fat: bool = !fat_images.is_empty();
-        let mut fs_image: HyperlightFSImage = if use_prebuilt_fat {
-            build_fs_with_prebuilt_fat(fat_images, ramfs_filename.as_ref())?
-        } else {
-            build_fs_with_empty_fat(mounts, ramfs_filename.as_ref())?
-        };
-        debug!("hyperlight::new(): built filesystem image (prebuilt={})", use_prebuilt_fat);
-
-        // Apply mounts and ramfs to the FAT filesystem.
-        setup_fat_filesystem(
-            &mut fs_image,
-            use_prebuilt_fat,
-            fat_images,
-            mounts,
-            ramfs_filename.as_ref(),
-        )?;
+        // Build Hyperlight filesystem image with all FAT mounts and file mounts.
+        let fs_image: HyperlightFSImage =
+            build_filesystem(fat_images, mounts, ramfs_filename.as_ref())?;
 
         // Creates Hyperlight sandbox.
         let mut sandbox: UninitializedSandbox =
@@ -514,228 +498,114 @@ fn derive_ramfs_guest_path(host_path: &str) -> Result<String> {
 ///
 /// # Description
 ///
-/// Builds a Hyperlight filesystem using pre-built FAT images.
+/// Builds a Hyperlight filesystem with pre-built FAT images and file mounts.
+///
+/// When pre-built FAT images are provided, file mounts and ramfs are added as read-only
+/// overlays via `add_file()` since Hyperlight does not allow a root FAT alongside other mounts.
+/// When no pre-built FATs exist, an empty root FAT is created and files are copied into it.
 ///
 /// # Parameters
 ///
 /// - `fat_images`: Slice of (host_path, mount_point) tuples for pre-built FAT images.
-/// - `ramfs_filename`: Optional path to a ramfs file to add as read-only overlay.
+/// - `mounts`: Slice of (host_path, guest_path) tuples for file mounts (files only, no directories).
+/// - `ramfs_filename`: Optional path to a ramfs file to include in the filesystem.
 ///
 /// # Returns
 ///
 /// Upon successful completion, returns the built HyperlightFSImage. Otherwise, returns an error.
 ///
-fn build_fs_with_prebuilt_fat(
+fn build_filesystem(
     fat_images: &[(String, String)],
-    ramfs_filename: Option<&String>,
-) -> Result<HyperlightFSImage> {
-    // Start with the first FAT image.
-    let (first_fat_path, first_mount_point): &(String, String) = &fat_images[0];
-    debug!(
-        "build_fs_with_prebuilt_fat(): adding FAT image (path={}, mount_point={})",
-        first_fat_path, first_mount_point
-    );
-    let mut builder: _ =
-        HyperlightFSBuilder::new().add_fat_image(first_fat_path, first_mount_point)?;
-
-    // Add additional FAT images.
-    for (fat_path, mount_point) in fat_images.iter().skip(1) {
-        debug!(
-            "build_fs_with_prebuilt_fat(): adding FAT image (path={}, mount_point={})",
-            fat_path, mount_point
-        );
-        builder = builder.add_fat_image(fat_path, mount_point)?;
-    }
-
-    // Add read-only ramfs file if specified.
-    if let Some(ramfs_path) = ramfs_filename {
-        let guest_path: String = derive_ramfs_guest_path(ramfs_path)?;
-        debug!(
-            "build_fs_with_prebuilt_fat(): adding ramfs (host={}, guest={})",
-            ramfs_path, guest_path
-        );
-        builder = builder.add_file(ramfs_path, &guest_path)?;
-    }
-
-    Ok(builder.build()?)
-}
-
-///
-/// # Description
-///
-/// Builds a Hyperlight filesystem with an empty FAT mount at root.
-/// Calculates the required size based on mounts and ramfs file.
-///
-/// # Parameters
-///
-/// - `mounts`: Slice of (host_path, guest_path) tuples to be mounted.
-/// - `ramfs_filename`: Optional path to a ramfs file to include in size calculation.
-///
-/// # Returns
-///
-/// Upon successful completion, returns the built HyperlightFSImage. Otherwise, returns an error.
-///
-fn build_fs_with_empty_fat(
     mounts: &[(String, String)],
     ramfs_filename: Option<&String>,
 ) -> Result<HyperlightFSImage> {
-    // Calculate required FAT size based on content to be added.
-    let mut content_size: usize = calculate_mount_content_size(mounts)?;
-
-    // Include ramfs file size.
-    if let Some(ramfs_path) = ramfs_filename {
-        if let Ok(metadata) = std::fs::metadata(ramfs_path) {
-            content_size = content_size.saturating_add(metadata.len() as usize);
-            debug!(
-                "build_fs_with_empty_fat(): ramfs size={} bytes, total content={}",
-                metadata.len(),
-                content_size
-            );
+    // Validate that all mounts are files (not directories).
+    for (host_path, _guest_path) in mounts {
+        let metadata: std::fs::Metadata = std::fs::metadata(host_path).map_err(|error| {
+            let reason: String =
+                format!("failed to get metadata for mount (path={host_path}, error={error})");
+            error!("build_filesystem(): {reason}");
+            anyhow::anyhow!(reason)
+        })?;
+        if !metadata.is_file() {
+            let reason: String =
+                format!("mount path must be a file, not a directory (path={host_path})");
+            error!("build_filesystem(): {reason}");
+            return Err(anyhow::anyhow!(reason));
         }
     }
 
-    // Size calculation: at least 1MB, plus 50% overhead for FAT metadata/fragmentation.
-    const MIN_FAT_SIZE: usize = 1024 * 1024;
-    let fat_size: usize = MIN_FAT_SIZE.max(content_size + (content_size / 2) + MIN_FAT_SIZE);
+    if !fat_images.is_empty() {
+        // Pre-built FAT images exist — add them, then add files as read-only overlays.
+        // Hyperlight does not allow a root FAT alongside other mounts.
+        let (first_path, first_mount): &(String, String) = &fat_images[0];
+        debug!(
+            "build_filesystem(): adding FAT image (path={first_path}, mount_point={first_mount})"
+        );
+        let mut builder = HyperlightFSBuilder::new().add_fat_image(first_path, first_mount)?;
 
-    debug!("build_fs_with_empty_fat(): creating empty FAT at / ({} bytes)", fat_size);
-    Ok(HyperlightFSBuilder::new()
-        .add_empty_fat_mount("/", fat_size)?
-        .build()?)
-}
+        for (fat_path, mount_point) in fat_images.iter().skip(1) {
+            debug!(
+                "build_filesystem(): adding FAT image (path={fat_path}, mount_point={mount_point})"
+            );
+            builder = builder.add_fat_image(fat_path, mount_point)?;
+        }
 
-///
-/// # Description
-///
-/// Sets up the FAT filesystem by creating directories, copying ramfs, and applying mounts.
-///
-/// # Parameters
-///
-/// - `fs_image`: Mutable reference to the filesystem image.
-/// - `use_prebuilt`: Whether pre-built FAT images were used.
-/// - `fat_images`: Slice of pre-built FAT image configurations.
-/// - `mounts`: Slice of mount mappings to apply.
-/// - `ramfs_filename`: Optional ramfs file to copy (only for non-prebuilt case).
-///
-/// # Returns
-///
-/// Upon successful completion, returns empty. Otherwise, returns an error.
-///
-fn setup_fat_filesystem(
-    fs_image: &mut HyperlightFSImage,
-    use_prebuilt: bool,
-    fat_images: &[(String, String)],
-    mounts: &[(String, String)],
-    ramfs_filename: Option<&String>,
-) -> Result<()> {
-    if !use_prebuilt {
-        // For empty FAT mount at root: create /data, copy ramfs, apply mounts.
+        // Add ramfs and file mounts as read-only files.
+        if let Some(ramfs_path) = ramfs_filename {
+            let guest_path: String = derive_ramfs_guest_path(ramfs_path)?;
+            debug!("build_filesystem(): adding RO file (host={ramfs_path}, guest={guest_path})");
+            builder = builder.add_file(ramfs_path, &guest_path)?;
+        }
+        for (host_path, guest_path) in mounts {
+            debug!("build_filesystem(): adding RO file (host={host_path}, guest={guest_path})");
+            builder = builder.add_file(host_path, guest_path)?;
+        }
+
+        let fs_image: HyperlightFSImage = builder.build()?;
+        debug!("build_filesystem(): filesystem built successfully");
+        Ok(fs_image)
+    } else {
+        // No pre-built FATs — create an empty root FAT and copy files into it.
+        let mut content_size: usize = 0;
+        for (host_path, _) in mounts {
+            if let Ok(metadata) = std::fs::metadata(host_path) {
+                content_size = content_size.saturating_add(metadata.len() as usize);
+            }
+        }
+        if let Some(ramfs_path) = ramfs_filename {
+            if let Ok(metadata) = std::fs::metadata(ramfs_path) {
+                content_size = content_size.saturating_add(metadata.len() as usize);
+            }
+        }
+
+        const MIN_FAT_SIZE: usize = 1024 * 1024;
+        let fat_size: usize = MIN_FAT_SIZE.max(content_size + (content_size / 2) + MIN_FAT_SIZE);
+        debug!("build_filesystem(): creating empty FAT at / ({fat_size} bytes)");
+
+        let mut fs_image: HyperlightFSImage = HyperlightFSBuilder::new()
+            .add_empty_fat_mount("/", fat_size)?
+            .build()?;
+
         let fat_image: &mut FatImage = fs_image.fat_mount_mut("/").ok_or_else(|| {
             let reason: String = "FAT mount at / not found".to_string();
-            error!("setup_fat_filesystem(): {reason}");
+            error!("build_filesystem(): {reason}");
             anyhow::anyhow!(reason)
         })?;
 
-        // Create /data directory for writable storage.
-        create_data_directory(fat_image)?;
-
-        // Copy ramfs file into FAT (can't use builder.add_file() with root mount).
         if let Some(ramfs_path) = ramfs_filename {
             let guest_path: String = derive_ramfs_guest_path(ramfs_path)?;
-            debug!(
-                "setup_fat_filesystem(): copying ramfs (host={}, guest={})",
-                ramfs_path, guest_path
-            );
+            debug!("build_filesystem(): copying ramfs (host={ramfs_path}, guest={guest_path})");
             copy_file_to_fat(fat_image, ramfs_path, &guest_path)?;
         }
-
-        // Apply mount mappings.
-        if !mounts.is_empty() {
-            apply_mounts_to_fat(fat_image, mounts)?;
-        }
-    } else {
-        // For pre-built FAT: create /data directory if root mount exists, then apply mounts.
-        if let Some(fat_image) = fs_image.fat_mount_mut("/") {
-            create_data_directory(fat_image)?;
+        for (host_path, guest_path) in mounts {
+            debug!("build_filesystem(): copying mount (host={host_path}, guest={guest_path})");
+            copy_file_to_fat(fat_image, host_path, guest_path)?;
         }
 
-        if !mounts.is_empty() {
-            apply_mounts_to_prebuilt_fat(fs_image, fat_images, mounts)?;
-        }
+        debug!("build_filesystem(): filesystem built successfully");
+        Ok(fs_image)
     }
-
-    debug!("setup_fat_filesystem(): filesystem setup complete");
-    Ok(())
-}
-
-///
-/// # Description
-///
-/// Creates the /data directory in the FAT filesystem for writable storage.
-///
-/// # Parameters
-///
-/// - `fat_image`: Mutable reference to the FAT image.
-///
-/// # Returns
-///
-/// Upon successful completion, returns empty. Otherwise, returns an error.
-///
-fn create_data_directory(fat_image: &mut FatImage) -> Result<()> {
-    match fat_image.create_dir("/data") {
-        Ok(()) => {
-            debug!("create_data_directory(): created /data directory");
-            Ok(())
-        },
-        Err(error) => {
-            let error_str: String = error.to_string();
-            if error_str.contains("already exists") || error_str.contains("AlreadyExists") {
-                debug!("create_data_directory(): /data directory already exists");
-                Ok(())
-            } else {
-                let reason: String = format!("failed to create /data directory (error={error})");
-                error!("create_data_directory(): {reason}");
-                Err(anyhow::anyhow!(reason))
-            }
-        },
-    }
-}
-
-///
-/// # Description
-///
-/// Applies mount mappings to pre-built FAT images, finding the appropriate FAT image.
-///
-/// # Parameters
-///
-/// - `fs_image`: Mutable reference to the filesystem image.
-/// - `fat_images`: Slice of pre-built FAT image configurations.
-/// - `mounts`: Slice of mount mappings to apply.
-///
-/// # Returns
-///
-/// Upon successful completion, returns empty. Otherwise, returns an error.
-///
-fn apply_mounts_to_prebuilt_fat(
-    fs_image: &mut HyperlightFSImage,
-    fat_images: &[(String, String)],
-    mounts: &[(String, String)],
-) -> Result<()> {
-    // Try root mount first.
-    if let Some(fat_image) = fs_image.fat_mount_mut("/") {
-        return apply_mounts_to_fat(fat_image, mounts);
-    }
-
-    // Fall back to trying each pre-built mount point.
-    for (_, mount_point) in fat_images {
-        if let Some(fat_image) = fs_image.fat_mount_mut(mount_point) {
-            return apply_mounts_to_fat(fat_image, mounts);
-        }
-    }
-
-    let reason: String = "no suitable FAT mount found for applying mounts".to_string();
-    error!("apply_mounts_to_prebuilt_fat(): {reason}");
-    Err(anyhow::anyhow!(reason))
 }
 
 ///
@@ -768,131 +638,6 @@ fn calculate_fat_images_size(fat_images: &[(String, String)]) -> Result<usize> {
 
     debug!("calculate_fat_images_size(): total FAT size = {} bytes", total_size);
     Ok(total_size)
-}
-
-///
-/// # Description
-///
-/// Calculates the total size of content to be mounted from host paths.
-///
-/// # Parameters
-///
-/// - `mounts`: A slice of (host_path, guest_path) tuples representing the mounts.
-///
-/// # Returns
-///
-/// Upon successful completion, this function returns the total size in bytes of all files to be
-/// mounted. Otherwise, it returns an error.
-///
-fn calculate_mount_content_size(mounts: &[(String, String)]) -> Result<usize> {
-    let mut total_size: usize = 0;
-
-    for (host_path, _guest_path) in mounts {
-        let metadata: std::fs::Metadata = std::fs::metadata(host_path).map_err(|error| {
-            let reason: String =
-                format!("failed to get metadata for mount (path={host_path}, error={error})");
-            error!("calculate_mount_content_size(): {reason}");
-            anyhow::anyhow!(reason)
-        })?;
-
-        if metadata.is_file() {
-            total_size = total_size.saturating_add(metadata.len() as usize);
-        } else if metadata.is_dir() {
-            total_size = total_size.saturating_add(calculate_dir_size(host_path)?);
-        }
-    }
-
-    debug!("calculate_mount_content_size(): total mount content size = {} bytes", total_size);
-    Ok(total_size)
-}
-
-///
-/// # Description
-///
-/// Recursively calculates the total size of all files in a directory.
-///
-/// # Parameters
-///
-/// - `dir_path`: The path to the directory.
-///
-/// # Returns
-///
-/// Upon successful completion, this function returns the total size in bytes of all files in the
-/// directory. Otherwise, it returns an error.
-///
-fn calculate_dir_size(dir_path: &str) -> Result<usize> {
-    let mut total_size: usize = 0;
-
-    for entry in std::fs::read_dir(dir_path).map_err(|error| {
-        let reason: String = format!("failed to read directory (path={dir_path}, error={error})");
-        error!("calculate_dir_size(): {reason}");
-        anyhow::anyhow!(reason)
-    })? {
-        let entry: std::fs::DirEntry = entry.map_err(|error| {
-            let reason: String = format!("failed to read directory entry (error={error})");
-            error!("calculate_dir_size(): {reason}");
-            anyhow::anyhow!(reason)
-        })?;
-
-        let metadata: std::fs::Metadata = entry.metadata().map_err(|error| {
-            let reason: String =
-                format!("failed to get metadata (path={}, error={error})", entry.path().display());
-            error!("calculate_dir_size(): {reason}");
-            anyhow::anyhow!(reason)
-        })?;
-
-        if metadata.is_file() {
-            total_size = total_size.saturating_add(metadata.len() as usize);
-        } else if metadata.is_dir() {
-            let subdir_path: String = entry.path().to_string_lossy().into_owned();
-            total_size = total_size.saturating_add(calculate_dir_size(&subdir_path)?);
-        }
-    }
-
-    Ok(total_size)
-}
-
-///
-/// # Description
-///
-/// Applies mount mappings by copying host files/directories into the FAT filesystem.
-///
-/// # Parameters
-///
-/// - `fat_image`: A mutable reference to the FAT image.
-/// - `mounts`: A slice of (host_path, guest_path) tuples representing the mounts.
-///
-/// # Returns
-///
-/// Upon successful completion, this function returns empty. Otherwise, it returns an error.
-///
-fn apply_mounts_to_fat(fat_image: &mut FatImage, mounts: &[(String, String)]) -> Result<()> {
-    for (host_path, guest_path) in mounts {
-        info!("Hostpath: {}", { host_path });
-        let metadata: std::fs::Metadata = std::fs::metadata(host_path).map_err(|error| {
-            let reason: String =
-                format!("failed to get metadata for mount (path={host_path}, error={error})");
-            error!("apply_mounts_to_fat(): {reason}");
-            anyhow::anyhow!(reason)
-        })?;
-
-        if metadata.is_file() {
-            info!("apply_mounts_to_fat(): mounted file (host={host_path}, guest={guest_path})");
-            copy_file_to_fat(fat_image, host_path, guest_path)?;
-        } else if metadata.is_dir() {
-            info!(
-                "apply_mounts_to_fat(): mounted directory (host={host_path}, guest={guest_path})"
-            );
-            copy_dir_to_fat(fat_image, host_path, guest_path)?;
-        } else {
-            let reason: String =
-                format!("mount path is neither a file nor a directory (path={host_path})");
-            error!("apply_mounts_to_fat(): {reason}");
-            return Err(anyhow::anyhow!(reason));
-        }
-    }
-
-    Ok(())
 }
 
 ///
@@ -958,59 +703,6 @@ fn copy_file_to_fat(fat_image: &mut FatImage, host_path: &str, guest_path: &str)
 ///
 /// # Description
 ///
-/// Recursively copies a directory and its contents from the host into the FAT filesystem.
-///
-/// # Parameters
-///
-/// - `fat_image`: A mutable reference to the FAT image.
-/// - `host_dir`: The path to the directory on the host.
-/// - `guest_dir`: The path where the directory should appear in the guest.
-///
-/// # Returns
-///
-/// Upon successful completion, this function returns empty. Otherwise, it returns an error.
-///
-fn copy_dir_to_fat(fat_image: &mut FatImage, host_dir: &str, guest_dir: &str) -> Result<()> {
-    // Ensure the target directory exists in FAT.
-    ensure_fat_dir_exists(fat_image, guest_dir)?;
-
-    for entry in std::fs::read_dir(host_dir).map_err(|error| {
-        let reason: String = format!("failed to read directory (path={host_dir}, error={error})");
-        error!("copy_dir_to_fat(): {reason}");
-        anyhow::anyhow!(reason)
-    })? {
-        let entry: std::fs::DirEntry = entry.map_err(|error| {
-            let reason: String = format!("failed to read directory entry (error={error})");
-            error!("copy_dir_to_fat(): {reason}");
-            anyhow::anyhow!(reason)
-        })?;
-
-        let host_entry_path: String = entry.path().to_string_lossy().into_owned();
-        let entry_name: String = entry.file_name().to_string_lossy().into_owned();
-        let guest_entry_path: String =
-            format!("{}/{}", guest_dir.trim_end_matches('/'), entry_name);
-
-        let metadata: std::fs::Metadata = entry.metadata().map_err(|error| {
-            let reason: String =
-                format!("failed to get metadata (path={host_entry_path}, error={error})");
-            error!("copy_dir_to_fat(): {reason}");
-            anyhow::anyhow!(reason)
-        })?;
-
-        if metadata.is_file() {
-            copy_file_to_fat(fat_image, &host_entry_path, &guest_entry_path)?;
-        } else if metadata.is_dir() {
-            copy_dir_to_fat(fat_image, &host_entry_path, &guest_entry_path)?;
-        }
-        // Skip symlinks and other special files.
-    }
-
-    Ok(())
-}
-
-///
-/// # Description
-///
 /// Ensures that a directory path exists in the FAT filesystem, creating it and all parent
 /// directories if necessary.
 ///
@@ -1024,49 +716,28 @@ fn copy_dir_to_fat(fat_image: &mut FatImage, host_dir: &str, guest_dir: &str) ->
 /// Upon successful completion, this function returns empty. Otherwise, it returns an error.
 ///
 fn ensure_fat_dir_exists(fat_image: &mut FatImage, dir_path: &str) -> Result<()> {
-    let path: &Path = Path::new(dir_path);
     let mut current_path: String = String::new();
 
-    for component in path.components() {
-        match component {
-            std::path::Component::RootDir => {
-                current_path = "/".to_string();
+    for part in dir_path.split('/').filter(|s| !s.is_empty()) {
+        current_path = if current_path.is_empty() {
+            format!("/{part}")
+        } else {
+            format!("{current_path}/{part}")
+        };
+
+        // Try to create the directory, ignore if it already exists.
+        match fat_image.create_dir(&current_path) {
+            Ok(()) => {
+                debug!("ensure_fat_dir_exists(): created directory {current_path}");
             },
-            std::path::Component::Normal(name) => {
-                let name_str: &str = name.to_str().ok_or_else(|| {
-                    let reason: String = format!("invalid path component (path={dir_path})");
+            Err(error) => {
+                let error_str: String = error.to_string();
+                if !error_str.contains("already exists") && !error_str.contains("AlreadyExists") {
+                    let reason: String =
+                        format!("failed to create directory (path={current_path}, error={error})");
                     error!("ensure_fat_dir_exists(): {reason}");
-                    anyhow::anyhow!(reason)
-                })?;
-
-                if current_path == "/" {
-                    current_path = format!("/{name_str}");
-                } else {
-                    current_path = format!("{current_path}/{name_str}");
+                    return Err(anyhow::anyhow!(reason));
                 }
-
-                // Try to create the directory, ignore if it already exists.
-                match fat_image.create_dir(&current_path) {
-                    Ok(()) => {
-                        debug!("ensure_fat_dir_exists(): created directory {current_path}");
-                    },
-                    Err(error) => {
-                        // Ignore "already exists" errors.
-                        let error_str: String = error.to_string();
-                        if !error_str.contains("already exists")
-                            && !error_str.contains("AlreadyExists")
-                        {
-                            let reason: String = format!(
-                                "failed to create directory (path={current_path}, error={error})"
-                            );
-                            error!("ensure_fat_dir_exists(): {reason}");
-                            return Err(anyhow::anyhow!(reason));
-                        }
-                    },
-                }
-            },
-            _ => {
-                // Skip other components like CurDir (.) or ParentDir (..).
             },
         }
     }

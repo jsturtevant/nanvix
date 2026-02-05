@@ -70,29 +70,21 @@ To get started with the `z` utility, run:
 ./z help
 ```
 
-### Build Commands
+### Build Commands (ALWAYS RUN):
 
 ```bash
-# Build with previous build parameters/options (recommended)
-./z build --with-cached-options -- all
-
-# Build with Docker
-./z build --with-docker -- all
-
-# Build with local toolchain
-./z build -- all
-
-# Build specific targets
-./z build -- kernel          # Build kernel only
-./z build -- all-nanvixd     # Build nanvixd only
-./z build -- all-uservm      # Build uservm only
-
-# Full build (includes optional components)
-./z build -- BUILD_OPT=yes all
-
-# Fast build (skips optional components)
-./z build -- BUILD_OPT=no all
+/z build -- BUILD_OPT=yes LOG_LEVEL=info MACHINE=hyperlight all
+./scripts/create-fat.sh sysroot-debug/lib/python3.12  
 ```
+
+Tests (ALWAYS RUN):
+```bash
+rm -rf logs ; RUST_LOG=trace ./bin/nanvixd.elf -fat lib/fat/python3.12.fat:/lib -mount src/user/hello-python/__main__.py:/__main__.py   -- sysroot-debug/bin/python3 /__main__.py
+
+cd /mount/d/hyperlight-nanvix && cargo run -- guest-examples/hello.python
+```
+
+DEBUG with the logs folder: ./logs
 
 ### Build Parameters
 
@@ -145,28 +137,8 @@ Example:
 
 ### Testing Commands
 
-#### Unit Tests
 
-```bash
-# Run all unit tests
-./z build --with-cached-options -- run-unit-tests
-```
 
-#### System Tests
-
-System tests run against a live Nanvix system and come in two modes:
-
-**HTTP Mode Tests** (supports all program types including WASM and interpreters):
-
-```bash
-./z build --with-cached-options -- run-nanvixd-http-tests
-```
-
-**Terminal Mode Tests** (native executables only):
-
-```bash
-./z build --with-cached-options -- run-nanvixd-terminal-tests
-```
 
 **Run specific test suites:**
 
