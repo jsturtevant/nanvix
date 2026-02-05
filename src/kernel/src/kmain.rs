@@ -248,12 +248,14 @@ fn spawn_servers(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(kargs: &KernelArguments) {
-    info!("initializing the kernel... (ticks={})", pm::ticks());
+    let t_start: u64 = pm::ticks();
+    info!("initializing the kernel... (ticks={})", t_start);
 
     // Initialize the kernel heap.
     if let Err(e) = unsafe { kheap::init() } {
         panic!("failed to initialize kernel heap: {:?}", e);
     }
+    info!("[KTIMING] kheap::init done (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
 
     #[cfg(test)]
     test();
@@ -315,6 +317,7 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
             panic!("failed to initialize hardware abstraction layer: {:?}", err);
         },
     };
+    info!("[KTIMING] hal::init done (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
 
     // Initialize the memory manager.
     let (root, mut mm): (Vmem, VirtMemoryManager) =
@@ -324,6 +327,7 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
                 panic!("failed to initialize memory manager: {:?}", err);
             },
         };
+    info!("[KTIMING] mm::init done (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
 
     let mut pm: ProcessManager = match pm::init(&mut hal, root) {
         Ok(pm) => pm,
@@ -331,6 +335,7 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
             panic!("failed to initialize process manager: {:?}", err);
         },
     };
+    info!("[KTIMING] pm::init done (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
 
     // Start application cores.
     #[cfg(feature = "smp")]
@@ -413,6 +418,7 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
     info!("number of cores online: {}", cores_online);
 
     let status: ExitStatus = if spawn_servers(&mut mm, &mut pm, &kernel_modules) > 0 {
+        info!("[KTIMING] spawn_servers done (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
         // Initialize kernel call dispatcher.
         kcall::init();
 
@@ -422,11 +428,13 @@ pub extern "C" fn kmain(kargs: &KernelArguments) {
                 panic!("failed to mask timer interrupt: {:?}", e);
             }
         }
+        info!("[KTIMING] entering kcall::handler (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
 
         kcall::handler(&mut hal, &mut mm, &mut pm)
     } else {
         ExitStatus::ok()
     };
+    info!("[KTIMING] kcall::handler returned (ticks={}, delta={})", pm::ticks(), pm::ticks() - t_start);
 
     #[cfg(feature = "smp")]
     startup::wait().expect("failed to synchronize application cores");

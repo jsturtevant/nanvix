@@ -44,7 +44,10 @@ use ::std::{
     io::Write,
     os::raw::c_int,
     path::Path,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 use ::sys::error::ErrorCode;
 use ::syslog::{
@@ -95,6 +98,9 @@ pub struct Vmm {
     // Wrapped in Option so we can move the UninitializedSandbox out (evolve consumes self).
     sandbox: Arc<Mutex<Option<UninitializedSandbox>>>,
     vmem: Arc<Mutex<VirtualMemory>>,
+    // Counters for VM exit diagnostics.
+    vmbus_write_count: Arc<AtomicU64>,
+    vmbus_read_count: Arc<AtomicU64>,
 }
 
 struct InnerVmm {
@@ -280,14 +286,22 @@ impl Vmm {
         // Create a closure for VmbusWrite that matches the expected signature
         // NOTE: output function is FnMut, so we must keep it mutable when captured.
         let mut output_fn: Box<StdoutFn> = args.output;
+        let vmbus_write_count = Arc::new(AtomicU64::new(0));
+        let vmbus_write_count_clone = vmbus_write_count.clone();
         sandbox.register("VmbusWrite", move |data: Vec<u8>| -> i32 {
+            vmbus_write_count_clone.fetch_add(1, Ordering::Relaxed);
             output_fn(data).unwrap_or(-1)
         })?;
 
         // Create a closure for VmbusRead that matches the expected signature
         // NOTE: input function is FnMut, so we must keep it mutable when captured.
         let mut input_fn: Box<StdinFn> = args.input;
-        sandbox.register("VmbusRead", move || -> Vec<u8> { input_fn().unwrap_or_default() })?;
+        let vmbus_read_count = Arc::new(AtomicU64::new(0));
+        let vmbus_read_count_clone = vmbus_read_count.clone();
+        sandbox.register("VmbusRead", move || -> Vec<u8> { 
+            vmbus_read_count_clone.fetch_add(1, Ordering::Relaxed);
+            input_fn().unwrap_or_default() 
+        })?;
 
         Ok(Self {
             vmem,
@@ -296,6 +310,8 @@ impl Vmm {
             inner: Arc::new(Mutex::new(InnerVmm {
                 control_tx: args.control_tx,
             })),
+            vmbus_write_count,
+            vmbus_read_count,
         })
     }
 
@@ -340,6 +356,9 @@ impl Vmm {
         let t_evolve = std::time::Instant::now();
         let result: Result<MultiUseSandbox, HyperlightError> = uninit.evolve();
         eprintln!("[TIMING] sandbox.evolve(): {:?}", t_evolve.elapsed());
+        eprintln!("[TIMING] vmbus_writes: {}, vmbus_reads: {}", 
+            self.vmbus_write_count.load(Ordering::Relaxed),
+            self.vmbus_read_count.load(Ordering::Relaxed));
 
         // Communicate shutdown to orchestrator.
         if let Err(error) = self
