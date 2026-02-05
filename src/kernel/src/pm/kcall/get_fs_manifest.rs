@@ -30,17 +30,12 @@ fn do_get_fs_manifest(
     base_addr: VirtualAddress,
     size_addr: VirtualAddress,
 ) -> Result<(), Error> {
-    trace!(
-        "pid={pid:?}, base_addr={base_addr:?}, size_addr={size_addr:?}"
-    );
+    trace!("pid={pid:?}, base_addr={base_addr:?}, size_addr={size_addr:?}");
 
     // Get filesystem manifest info from platform.
     let (base, size): (usize, usize) = Platform::get_fs_manifest_info();
 
-    trace!(
-        "do_get_fs_manifest(): base={:#x}, size={:#x}",
-        base, size
-    );
+    trace!("do_get_fs_manifest(): base={:#x}, size={:#x}", base, size);
 
     // Copy base address to user space.
     pm.vmcopy_to_user(

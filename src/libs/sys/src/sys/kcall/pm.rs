@@ -458,9 +458,6 @@ pub fn get_fs_manifest(base: &mut usize, size: &mut usize) -> Result<(), Error> 
     if result == 0 {
         Ok(())
     } else {
-        Err(Error::new(
-            ErrorCode::try_from(result)?,
-            "failed to get filesystem manifest",
-        ))
+        Err(Error::new(ErrorCode::try_from(result)?, "failed to get filesystem manifest"))
     }
 }

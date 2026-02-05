@@ -76,10 +76,7 @@ pub fn write(message: Message) -> Result<(), Error> {
     // Check if this is a WriteRequest (header byte == 0).
     if payload[HEADER_OFFSET] != WRITE_REQUEST_HEADER {
         // Not a WriteRequest - drop the message (other IPC is disabled).
-        trace!(
-            "stdio::write(): dropping non-WriteRequest message (header={})",
-            header_value
-        );
+        trace!("stdio::write(): dropping non-WriteRequest message (header={})", header_value);
         return Ok(());
     }
 
@@ -95,10 +92,7 @@ pub fn write(message: Message) -> Result<(), Error> {
     // Only forward stdout and stderr writes to the host.
     if fd != STDOUT_FILENO && fd != STDERR_FILENO {
         // Not stdout/stderr - drop the message (other IPC is disabled).
-        trace!(
-            "stdio::write(): dropping WriteRequest for non-stdout/stderr (fd={})",
-            fd
-        );
+        trace!("stdio::write(): dropping WriteRequest for non-stdout/stderr (fd={})", fd);
         return Ok(());
     }
 

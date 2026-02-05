@@ -88,7 +88,8 @@ pub unsafe extern "C" fn rename(oldpath: *const c_char, newpath: *const c_char) 
         },
         Err(fs::FsError::ReadOnly) => {
             ::syslog::error!(
-                "rename(): read-only file system (oldpath={oldpath_str:?}, newpath={newpath_str:?})"
+                "rename(): read-only file system (oldpath={oldpath_str:?}, \
+                 newpath={newpath_str:?})"
             );
             *__errno_location() = ErrorCode::ReadOnlyFileSystem.get();
             -1
@@ -116,9 +117,7 @@ pub unsafe extern "C" fn rename(oldpath: *const c_char, newpath: *const c_char) 
             -1
         },
         Err(e) => {
-            ::syslog::error!(
-                "rename(): {e:?} (oldpath={oldpath_str:?}, newpath={newpath_str:?})"
-            );
+            ::syslog::error!("rename(): {e:?} (oldpath={oldpath_str:?}, newpath={newpath_str:?})");
             *__errno_location() = ErrorCode::IoErr.get();
             -1
         },

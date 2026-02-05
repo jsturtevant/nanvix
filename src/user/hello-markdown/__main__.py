@@ -3,6 +3,7 @@
 
 import markdown
 
+
 def main():
     print("Converting Markdown to HTML...")
 
@@ -30,12 +31,13 @@ Visit [Nanvix](https://github.com/nanvix/nanvix) for more info.
 """
 
     # Convert to HTML
-    html = markdown.markdown(md_text, extensions=['fenced_code'])
+    html = markdown.markdown(md_text, extensions=["fenced_code"])
 
     print("Generated HTML:")
     print(html)
     print()
     print("ok")
+
 
 if __name__ == "__main__":
     main()

@@ -322,17 +322,15 @@ fn init_hyperlight_fs() {
                 }
             } else {
                 syslog::trace!(
-                    "init_hyperlight_fs(): no filesystem manifest available (base={:#x}, size={:#x})",
+                    "init_hyperlight_fs(): no filesystem manifest available (base={:#x}, \
+                     size={:#x})",
                     base,
                     size
                 );
             }
         },
         Err(e) => {
-            syslog::trace!(
-                "init_hyperlight_fs(): failed to get filesystem manifest info: {:?}",
-                e
-            );
+            syslog::trace!("init_hyperlight_fs(): failed to get filesystem manifest info: {:?}", e);
             // Don't panic - filesystem might not be available in all configurations.
         },
     }
