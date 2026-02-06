@@ -86,13 +86,13 @@ goblin = { version = "0.10.0", default-features = false }
 indicatif = "0.18.0"
 http = "1.3.1"
 http-body-util = "0.1.3"
-hyperlight-common = { path = "../nanvix-hyperlight/src/hyperlight_common", default-features = false }
-hyperlight-host = { path = "../nanvix-hyperlight/src/hyperlight_host", default-features = false, features = [
+hyperlight-common = { path = "../hyperlight-1/src/hyperlight_common", default-features = false }
+hyperlight-host = { path = "../hyperlight-1/src/hyperlight_host", default-features = false, features = [
         "kvm",
         "mshv3",
         "hw-interrupts",
 ] }
-hyperlight-guest = { path = "../nanvix-hyperlight/src/hyperlight_guest", default-features = false }
+hyperlight-guest = { path = "../hyperlight-1/src/hyperlight_guest", default-features = false }
 hyper = { version = "1.6.0", default-features = false }
 hyper-util = { version = "0.1.14", default-features = false }
 hwloc = { path = "src/libs/hwloc", default-features = false }
