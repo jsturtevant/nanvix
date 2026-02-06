@@ -73,15 +73,15 @@ To get started with the `z` utility, run:
 ### Build Commands (ALWAYS RUN):
 
 ```bash
-/z build -- BUILD_OPT=yes LOG_LEVEL=info MACHINE=hyperlight all
-./scripts/create-fat.sh sysroot-debug/lib/python3.12  
+just build
+just fat32
+just fat32-md
 ```
 
 Tests (ALWAYS RUN):
 ```bash
-rm -rf logs ; RUST_LOG=trace ./bin/nanvixd.elf -fat lib/fat/python3.12.fat:/lib -mount src/user/hello-python/__main__.py:/__main__.py   -- sysroot-debug/bin/python3 /__main__.py
-
-cd /mount/d/hyperlight-nanvix && cargo run -- guest-examples/hello.python
+just py
+just md
 ```
 
 DEBUG with the logs folder: ./logs

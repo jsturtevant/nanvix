@@ -62,7 +62,7 @@ Recreate the Python FAT image with the new package included:
 
 ```bash
 rm -f lib/fat/python3.12.fat
-./scripts/create-fat.sh sysroot-debug/lib/python3.12 /lib/python3.12 lib/fat/python3.12.fat
+./scripts/create-fat.sh sysroot-debug/lib/python3.12 
 ```
 
 **Important:** The guest path must be `/lib/python3.12` to match Python's
@@ -96,7 +96,7 @@ Run it with:
 
 ```bash
 ./bin/nanvixd.elf \
-  -fat lib/fat/python3.12.fat:/ \
+  -fat lib/fat/python3.12.fat:/lib \
   -mount src/user/hello-markdown/__main__.py:/__main__.py \
   -- sysroot-debug/bin/python3 /__main__.py
 ```

@@ -131,6 +131,18 @@ pub unsafe extern "C" fn _start(argp: *mut i8, envp: *mut i8) -> ! {
         environ = env.as_mut_ptr();
     }
 
+    // Set HOME=/root in the environment for tilde expansion in user-space
+    // programs (e.g., Python's os.path.expanduser("~")). The pwd module is not
+    // compiled into the Nanvix Python binary, so expanduser falls back to $HOME.
+    #[cfg(feature = "staticlib")]
+    unsafe {
+        extern "C" {
+            fn setenv(name: *const i8, value: *const i8, overwrite: i32) -> i32;
+        }
+        let _ret: i32 =
+            setenv(b"HOME\0".as_ptr() as *const i8, b"/root\0".as_ptr() as *const i8, 0);
+    }
+
     cfg_if::cfg_if! {
         if #[cfg(feature = "staticlib")] {
             let status: i32 = c_trampoline(argc, argv);
@@ -319,6 +331,20 @@ fn init_hyperlight_fs() {
                     // Don't panic - filesystem might not be available in all configurations.
                 } else {
                     syslog::trace!("init_hyperlight_fs(): filesystem initialized successfully");
+
+                    // Set the VFS home directory to /root for tilde expansion.
+                    // This enables paths like "~/.local/lib/python3.12/site-packages"
+                    // to resolve to "/root/.local/lib/python3.12/site-packages".
+                    unsafe {
+                        if let Ok(vfs) = ::hyperlight_guest::fs::vfs_mut() {
+                            if let Err(e) = vfs.set_home_dir("/root") {
+                                syslog::warn!(
+                                    "init_hyperlight_fs(): failed to set home directory: {:?}",
+                                    e
+                                );
+                            }
+                        }
+                    }
                 }
             } else {
                 syslog::trace!(

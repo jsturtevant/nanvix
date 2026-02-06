@@ -408,6 +408,20 @@ pub fn init(base: usize, size: usize) {
             panic!("syscall::init(): {reason}: {e}");
         }
     }
+
+    // Set the VFS home directory to match the root user's home from getpwuid().
+    // This enables tilde expansion in the Hyperlight VFS so that paths like
+    // "~/.local/lib/python3.12/site-packages" resolve to "/root/.local/...".
+    unsafe {
+        if let Ok(vfs) = hyperlight_guest::fs::vfs_mut() {
+            let _result = vfs.set_home_dir("/root");
+            #[cfg(feature = "syscall")]
+            if let Err(ref e) = _result {
+                ::syslog::warn!("syscall::init(): failed to set home directory: {e}");
+            }
+        }
+    }
+
     #[cfg(feature = "syscall")]
     ::syslog::trace!("syscall::init(): filesystem initialized successfully");
 }
